@@ -257,8 +257,30 @@ window.capturarFotoEvidencia = function(input) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            document.getElementById('prod-foto-preview').src = e.target.result;
-            document.getElementById('prod-preview-container').classList.remove('hidden');
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                
+                // Define a largura máxima de 800px (excelente para o Firebase e leve para o celular)
+                const max_width = 800; 
+                const scale = max_width / img.width;
+                
+                canvas.width = max_width;
+                canvas.height = img.height * scale;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Transforma em JPEG leve (60% de qualidade)
+                const fotoComprimidaBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                
+                // Alimenta o preview com a imagem LEVE
+                document.getElementById('prod-foto-preview').src = fotoComprimidaBase64;
+                document.getElementById('prod-preview-container').classList.remove('hidden');
+                
+                console.log("Imagem comprimida com sucesso para o Firebase!");
+            };
+            img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
