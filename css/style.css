@@ -1,1 +1,162 @@
 
+/* ==========================================================================
+   1. CONFIGURAÇÕES GERAIS PARA MOBILE (EXPERIÊNCIA DE APLICATIVO NATIVO)
+   ========================================================================== */
+html, body {
+    /* Remove aquele "puxar para atualizar" nativo do Chrome do celular, que irrita o operador */
+    overscroll-behavior-y: contain; 
+    /* Remove o atraso de clique e o destaque azul feio ao tocar em botões no celular */
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; /* Evita que o operador selecione textos sem querer ao tocar rápido */
+}
+
+/* Permitir seleção de texto apenas em campos de digitação e tabelas */
+input, textarea, td {
+    user-select: text !important;
+}
+
+/* Customização da barra de rolagem para ficar fina e moderna (Sumir com aquela barra grossa de PC) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ==========================================================================
+   2. ANIMAÇÕES E INTERAÇÕES (DA CARA DE SISTEMA MODERNO)
+   ========================================================================== */
+
+/* Animação suave para quando as abas mudarem ou novos elementos surgirem */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.secao-animada {
+    animation: fadeIn 0.35s ease-out forwards;
+}
+
+/* Aplicar a animação automaticamente nas seções do seu painel */
+#secao-segregacao, #secao-usuarios, #secao-arquivo, #area-formulario {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Efeito de foco profissional nos inputs (Borda brilha suavemente ao digitar) */
+input:focus, select:focus, textarea:focus {
+    outline: none !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Melhora o visual dos botões ao serem clicados ou tocados com o dedo */
+button:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* ==========================================================================
+   3. ESTILOS EXCLUSIVOS (EFEITOS VISUAIS PRO)
+   ========================================================================== */
+
+/* Efeito Glassmorphism (Vidro Fosco) para o Cabeçalho ou Modais */
+.efeito-vidro {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Alerta pulsante para itens urgentes Pendentes (Chama atenção do Supervisor) */
+.badge-pendente-pulsa {
+    position: relative;
+}
+.badge-pendente-pulsa::after {
+    content: '';
+    position: absolute;
+    width: 100%; height: 100%;
+    top: 0; left: 0;
+    border-radius: 9999px;
+    background-color: inherit;
+    opacity: 0.4;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+    75%, 100% {
+        transform: scale(1.4);
+        opacity: 0;
+    }
+}
+
+/* Estilização técnica para as linhas da tabela (Linhas alternadas facilitam leitura na fábrica) */
+tbody tr:nth-child(even) {
+    background-color: #f8fafc; /* Um cinza bem clarinho */
+}
+
+/* ==========================================================================
+   4. ESTILOS EXCLUSIVOS PARA O DASHBOARD (CONTROLE DA PRODUÇÃO)
+   ========================================================================== */
+
+/* Efeito de elevação profissional nos Cards (Massa Líquida, Temperatura, Lotes) */
+.card-dashboard {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Quando o supervisor passar o mouse ou o operador tocar no card */
+.card-dashboard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    border-color: #cbd5e1;
+}
+
+/* Destaque visual para os status na Tabela de Segregação */
+.status-badge {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Ajuste fino para a tabela no celular (scroll horizontal suave se a tabela for grande) */
+.wrapper-tabela {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Rolagem macia no iPhone */
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Deixar os cabeçalhos da tabela fixos no topo ao rolar para baixo */
+th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f1f5f9; /* Mantém o fundo cinza claro ao rolar */
+}
+
+/* Botão Flutuante (caso queira um botão de "+" redondo no canto inferior da tela no celular) */
+.btn-flutuante {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 50;
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
