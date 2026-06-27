@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Bimbo - QA Segregados</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+    
+    <link rel="manifest" href="manifest.json">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+    .bg-bimbo-wallpaper {
+        background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url("img/background-bimbo.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+    </style>
+</head>
+<body class="bg-bimbo-wallpaper flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md border-t-8 border-red-600 relative overflow-hidden">
+        
+        <div class="text-center mb-6">
+            <img src="img/logo-bimbo.png" alt="Grupo Bimbo" class="mx-auto h-14 object-contain max-w-[180px] drop-shadow-sm" onerror="this.style.display='none'; document.getElementById('logo-fallback').classList.remove('hidden')">
+            
+            <div id="logo-fallback" class="hidden inline-block bg-blue-700 text-white font-black text-2xl px-6 py-1.5 rounded-lg tracking-wider border-b-4 border-red-600 shadow-md">
+                BIMBO
+            </div>
+            
+            <h1 class="text-slate-800 text-xl font-extrabold mt-4 tracking-tight">QA Segregados</h1>
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Gestão de Qualidade e Rastreabilidade</p>
+        </div>
+
+        <div id="login-section">
+            <h2 class="text-sm font-bold text-slate-400 mb-4 text-center uppercase tracking-wider border-b pb-2">Acesso ao Sistema</h2>
+            
+            <div id="user-recognition" class="hidden flex flex-col items-center bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4">
+                <img id="user-recon-foto" src="" class="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-md mb-2">
+                <p class="text-xs font-bold text-slate-500 uppercase">Olá, colaborador(a)</p>
+                <p id="user-recon-nome" class="text-sm font-extrabold text-blue-900 text-center"></p>
+                <p id="user-recon-nivel" class="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full mt-1 uppercase"></p>
+            </div>
+
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">E-mail ou ID</label>
+                    <input type="text" id="login-identificador" placeholder="Ex: ID0000 ou usuario@grupobimbo.com" required class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:outline-none transition text-sm">
+                    <p id="login-feedback" class="text-[11px] font-medium text-slate-400 mt-1 pl-1">Digite seu ID ou e-mail cadastrado.</p>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Senha</label>
+                    <div class="relative">
+                        <input type="password" id="login-senha" placeholder="••••••••" required class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:outline-none transition text-sm pr-10">
+                        <button type="button" onclick="toggleVisibilidadeSenha('login-senha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 rounded-lg transition shadow-md shadow-blue-200 uppercase tracking-wide text-sm">
+                    Entrar
+                </button>
+            </form>
+            <p class="text-center text-xs text-slate-500 mt-6">
+                Novo colaborador? <button onclick="alternarTelas()" class="text-red-600 font-bold hover:underline">Solicitar Cadastro</button>
+            </p>
+        </div>
+
+        <div id="cadastro-section" class="hidden">
+            <h2 class="text-sm font-bold text-slate-400 mb-4 text-center uppercase tracking-wider border-b pb-2">Solicitar Cadastro</h2>
+            <form id="cadastro-form" class="space-y-3">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome Completo</label>
+                    <input type="text" id="cad-nome" required placeholder="Digite seu nome" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Como quer ser chamado? <span class="text-slate-400 font-normal text-[10px]">(Opcional)</span></label>
+                    <input type="text" id="cad-apelido" placeholder="" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">ID / Matrícula</label>
+                        <input type="text" id="cad-re" required placeholder="Ex: 1234" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">E-mail</label>
+                        <input type="email" id="cad-email" required placeholder="colaborador@grupobimbo.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Setor / Linha</label>
+                        <select id="cad-setor" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                            <option value="Bolleria">Linha Bolleria</option>
+                            <option value="Linha 3">Linha 3</option>
+                            <option value="Linha 20k">Linha 20k</option>
+                            <option value="Supervisão">Supervisão</option>
+                            <option value="Qualidade">Qualidade QA</option>
+                            <option value="Gerência/ADM">Gerência/ADM</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Turno</label>
+                        <select id="cad-turno" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                            <option value="1º Turno">1º Turno</option>
+                            <option value="2º Turno">2º Turno</option>
+                            <option value="3º Turno">3º Turno</option>
+                            <option value="4º Turno">4º Turno</option>
+                            <option value="Administrativo">ADM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nível de Autorização</label>
+                    <select id="cad-nivel" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-semibold text-blue-700 focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                        <option value="Operador">Operador (Registrar Segregação)</option>
+                        <option value="Supervisor">Supervisor (Monitorar Linha)</option>
+                        <option value="Qualidade">Qualidade (Validar e Liberar Lote)</option>
+                        <option value="Administrador">Administrador Geral</option>
+                    </select>
+                </div>
+
+                <div class="bg-slate-50 p-2 rounded-lg border border-dashed border-slate-300">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Foto de Perfil</label>
+                    <input type="file" id="cad-foto" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                    <div id="preview-container" class="mt-1 hidden text-center">
+                        <img id="foto-preview" src="" class="w-14 h-14 rounded-full mx-auto object-cover border-2 border-blue-600 shadow-md">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 space-y-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-0.5">Definir Senha</label>
+                        <div class="relative">
+                            <input type="password" id="cad-senha" required placeholder="Defina sua Senha" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none pr-10">
+                            <button type="button" onclick="toggleVisibilidadeSenha('cad-senha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold">👁️</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-0.5">Confirmar Senha</label>
+                        <div class="relative">
+                            <input type="password" id="cad-senha-confirma" required placeholder="Confirme sua Senha" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none pr-10">
+                            <button type="button" onclick="toggleVisibilidadeSenha('cad-senha-confirma', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold">👁️</button>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-medium leading-tight">A senha deve conter: mínimo de 8 caracteres, letras Maiúsculas, Minúsculas, números e pelo menos 1 caracter especial.</p>
+                </div>
+
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg transition shadow-md uppercase tracking-wide text-sm mt-2">
+                    Finalizar Cadastro
+                </button>
+            </form>
+            <p class="text-center text-xs text-slate-500 mt-4">
+                Já possui acesso? <button onclick="alternarTelas()" class="text-blue-700 font-bold hover:underline">Ir para o Login</button>
+            </p>
+        </div>
+
+    </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="js/config.js"></script> <script src="js/auth.js"></script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('PWA: Service Worker Registrado com Sucesso!'))
+      .catch(err => console.error('Erro ao registrar PWA:', err));
+  }
+</script>
+   
+</body>
+</html>
