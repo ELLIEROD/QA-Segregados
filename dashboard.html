@@ -77,12 +77,12 @@
                             </div>
                             
                             <div class="flex items-center gap-2">
-                                <label for="prod-foto-lote" class="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-2 transition w-full justify-center">
-                                    📸 <span>Tirar Foto para Escanear Lote Automático</span>
-                                </label>
-                                <input type="file" id="prod-foto" accept="image/*" onchange="capturarFotoEvidencia(this)">
-                                
-                            </div>
+    <label for="prod-foto-lote-file" class="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-2 transition w-full justify-center">
+        📸 <span>Tirar Foto para Escanear Lote Automático</span>
+    </label>
+    <input type="file" id="prod-foto-lote-file" accept="image/*" class="hidden" onchange="capturarFotoLote(this)">
+</div>
+
                             <canvas id="ocr-canvas" class="hidden"></canvas>
 
                             <div class="space-y-2 pt-1 border-t border-slate-200/60">
@@ -132,12 +132,13 @@
                         </div>
 
                         <div class="bg-slate-50 p-3 rounded-lg border border-dashed border-slate-300">
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">🖼️ Evidência/ Foto</label>
-                            <input type="file" id="prod-foto" accept="image/*" capture="environment" class="w-full text-xs text-slate-500" onchange="capturarFotoEvidencia(this)">
-                            <div id="prod-preview-container" class="mt-2 hidden">
-                                <img id="prod-foto-preview" src="" class="w-full h-32 object-cover rounded border">
-                            </div>
-                        </div>
+    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">🖼️ Evidência/ Foto</label>
+    <input type="file" id="prod-foto" accept="image/*" class="w-full text-xs text-slate-500" onchange="capturarFotoEvidencia(this)">
+    <div id="prod-preview-container" class="mt-2 hidden">
+        <img id="prod-foto-preview" src="" class="w-full h-32 object-cover rounded border">
+    </div>
+</div>
+
 
                         <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2.5 rounded-lg text-sm uppercase transition shadow-md">Gravar Registro</button>
                     </form>
