@@ -1,250 +1,326 @@
 // ==========================================
-// 1. CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE
+// 0. FUNÇÕES AUXILIARES GLOBAIS (Carregam primeiro para evitar erros no HTML)
 // ==========================================
-
-// O objeto firebaseConfig agora vem centralizado do arquivo js/config.js
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ==========================================
-// 2. CONTROLE DE AUTENTICAÇÃO E PERFIL
-// ==========================================
-const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
-
-// Só expulsa se NÃO estiver logado E se o usuário não estiver na página de login
-if (!usuarioLogado && !window.location.pathname.includes('index.html')) {
-    window.location.href = 'index.html';
-}
-
-// Atualizar cabeçalho
-let nomeTopo = usuarioLogado.apelido && usuarioLogado.apelido.trim() !== "" ? usuarioLogado.apelido : (usuarioLogado.nome ? usuarioLogado.nome.trim().split(" ")[0] : "Colaborador");
-document.getElementById('dash-user-nome').innerText = nomeTopo;
-document.getElementById('dash-user-perfil').innerText = usuarioLogado.nivel;
-document.getElementById('dash-user-foto').src = usuarioLogado.foto || 'https://www.w3schools.com/howto/img_avatar.png';
-
-// Liberar aba de gerenciamento apenas para cargos habilitados
-if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) {
-    document.getElementById('aba-usuarios-btn').classList.remove('hidden');
-}
-
-if (usuarioLogado.nivel === "Qualidade") {
-    document.querySelector('#area-formulario h2').innerText = "📌 Registrar Produto (Modo QA Habilitado)";
-}
-
-// Banco de Dados de Produtos organizados por Linha e Regras de Embalagem
-const BANCO_PRODUTOS = {
-    "Bolleria": [
-        { codigo: "101", nome: "Ana Maria Chocolate", cestosPorDolly: 32, produtosPorCesto: 12 },
-        { codigo: "102", nome: "Ana Maria Baunilha", cestosPorDolly: 32, produtosPorCesto: 12 },
-        { codigo: "103", nome: "Mini Bolo Gotas", cestosPorDolly: 24, produtosPorCesto: 15 }
-    ],
-    "Linha 3": [
-        { codigo: "201", nome: "Pão de Forma Tradicional", cestosPorDolly: 28, produtosPorCesto: 10 },
-        { codigo: "202", nome: "Pão de Forma Integral", cestosPorDolly: 28, produtosPorCesto: 10 }
-    ],
-    "Linha 20K": [
-        { codigo: "301", nome: "Bisnaguinha Pullmann", cestosPorDolly: 30, produtosPorCesto: 16 },
-        { codigo: "302", nome: "Rap10 Tradicional", cestosPorDolly: 40, produtosPorCesto: 20 }
-    ]
-};
-
-// Controla a alternância de abas principais do painel
-window.mudarAba = function(aba) {
-    const secoes = {
-        'segregacao': 'secao-segregacao',
-        'usuarios': 'secao-usuarios',
-        'arquivo': 'secao-arquivo'
-    };
-    
-    const botoes = {
-        'segregacao': 'aba-segregacao-btn',
-        'usuarios': 'aba-usuarios-btn',
-        'arquivo': 'aba-arquivo-btn'
-    };
-
-    Object.keys(secoes).forEach(key => {
-        const secaoEl = document.getElementById(secoes[key]);
-        const botaoEl = document.getElementById(botoes[key]);
-        
-        if (key === aba) {
-            if(secaoEl) secaoEl.classList.remove('hidden');
-            if(botaoEl) botaoEl.classList.add('text-blue-700', 'border-b-2', 'border-blue-700');
-        } else {
-            if(secaoEl) secaoEl.classList.add('hidden');
-            if(botaoEl) botaoEl.classList.remove('text-blue-700', 'border-b-2', 'border-blue-700');
-        }
-    });
-}
-
-// Funções de logout e interface de segurança
-window.logout = function() { 
-    sessionStorage.removeItem('usuarioLogado'); 
-    window.location.href = 'index.html'; 
-};
-
 window.toggleVisibilidadeSenha = function(inputId, botao) {
     const input = document.getElementById(inputId);
+    if (!input) return;
     if (input.type === "password") {
         input.type = "text";
-        botao.innerText = "🔒";
+        botao.innerText = "🔒"; 
     } else {
         input.type = "password";
         botao.innerText = "👁️";
     }
 }
 
-// ==========================================
-// 3. LÓGICA DE PRODUÇÃO E CÁLCULOS
-// ==========================================
+function alternarTelas() {
+    const loginSec = document.getElementById('login-section');
+    const cadSec = document.getElementById('cadastro-section');
+    const boxReconhecimento = document.getElementById('user-recognition');
+    if (loginSec) loginSec.classList.toggle('hidden');
+    if (cadSec) cadSec.classList.toggle('hidden');
+    if (boxReconhecimento) boxReconhecimento.classList.add('hidden');
+}
 
-window.atualizarListaProdutos = function() {
-    const linhaSelecionada = document.getElementById('prod-linha').value;
-    const selectProduto = document.getElementById('prod-nome');
-    
-    selectProduto.innerHTML = '<option value="">-- Selecione o Produto --</option>';
-    
-    if (!linhaSelecionada || !BANCO_PRODUTOS[linhaSelecionada]) {
-        selectProduto.innerHTML = '<option value="">Selecione primeiro a linha...</option>';
-        calcularQuantidadeTotal();
-        return;
+// Fazer a função ser vista pelo clique dos botões do index.html
+window.alternarTelas = alternarTelas;
+
+// ==========================================
+// 1. INICIALIZAÇÃO DO FIREBASE (AUTH/INDEX)
+// ==========================================
+if (typeof firebaseConfig !== 'undefined') {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
     }
-    
-    BANCO_PRODUTOS[linhaSelecionada].forEach(prod => {
-        const option = document.createElement('option');
-        option.value = prod.nome;
-        option.setAttribute('data-codigo', prod.codigo);
-        option.setAttribute('data-cestos', prod.cestosPorDolly);
-        option.setAttribute('data-produtos', prod.produtosPorCesto);
-        option.innerText = `[Cód: ${prod.codigo}] ${prod.nome}`;
-        selectProduto.appendChild(option);
+}
+const db = firebase.database();
+
+// Criar DOIS Administradores Master padrões na Nuvem caso o banco esteja vazio
+function inicializarAdminsMaster() {
+    db.ref('usuarios').once('value', (snapshot) => {
+        if (!snapshot.exists()) {
+            const adminsIniciais = {
+                "ADM001": {
+                    nome: "Admin Geral 1",
+                    apelido: "Admin 1",
+                    re: "ADM001",
+                    email: "admin1@grupobimbo.com",
+                    setor: "Qualidade",
+                    turno: "Administrativo",
+                    nivel: "Administrador",
+                    senha: "AdminBimbo@2026", 
+                    foto: "",
+                    status: "aprovado",
+                    aprovado: true
+                },
+                "ADM002": {
+                    nome: "Admin Geral 2",
+                    apelido: "Admin 2",
+                    re: "ADM002",
+                    email: "admin2@grupobimbo.com",
+                    setor: "Qualidade",
+                    turno: "Administrativo",
+                    nivel: "Administrador",
+                    senha: "SegurancaBimbo#99",
+                    foto: "",
+                    status: "aprovado",
+                    aprovado: true
+                }
+            };
+            db.ref('usuarios').set(adminsIniciais);
+        }
     });
-    
-    calcularQuantidadeTotal();
 }
+inicializarAdminsMaster();
 
-window.calcularQuantidadeTotal = function() {
-    const selectProduto = document.getElementById('prod-nome');
-    const optionSelecionada = selectProduto.options[selectProduto.selectedIndex];
+// Captura de elementos da interface
+const inputIdentificador = document.getElementById('login-identificador');
+const feedbackLogin = document.getElementById('login-feedback');
+const boxReconhecimento = document.getElementById('user-recognition');
+const fotoReconhecimento = document.getElementById('user-recon-foto');
+const nomeReconhecimento = document.getElementById('user-recon-nome');
+const nivelReconhecimento = document.getElementById('user-recon-nivel');
+
+// ==========================================
+// 2. RECONHECIMENTO DINÂMICO (PULL DO FIREBASE)
+// ==========================================
+function verificarUsuario() {
+    if (!inputIdentificador || !boxReconhecimento) return;
     
-    const dollys = parseInt(document.getElementById('prod-dollys').value) || 0;
-    const cestosAvulsos = parseInt(document.getElementById('prod-cestos').value) || 0;
-    
-    if (!optionSelecionada || !optionSelecionada.value) {
-        document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
+    const valor = inputIdentificador.value.trim().toUpperCase();
+    if (valor.length < 3) {
+        boxReconhecimento.classList.add('hidden');
+        if (feedbackLogin) feedbackLogin.innerText = "Digite seu ID ou e-mail cadastrado.";
+        if (feedbackLogin) feedbackLogin.className = "text-[11px] font-medium text-slate-400 mt-1 pl-1";
         return;
     }
-    
-    const cestosPorDolly = parseInt(optionSelecionada.getAttribute('data-cestos'));
-    const produtosPorCesto = parseInt(optionSelecionada.getAttribute('data-produtos'));
-    
-    const totalCestos = (dollys * cestosPorDolly) + cestosAvulsos;
-    const totalProdutos = totalCestos * produtosPorCesto;
-    
-    document.getElementById('prod-qtd-total-display').innerText = `${totalProdutos} produtos (${totalCestos} cx total)`;
-}
 
-window.toggleLote = function(checkbox) {
-    const sup = document.getElementById('prod-lote-sup');
-    const inf = document.getElementById('prod-lote-inf');
-    if (checkbox.checked) {
-        sup.value = "SEM LOTE";
-        inf.value = "APARAS / REFUGO";
-        sup.disabled = true;
-        inf.disabled = true;
-    } else {
-        sup.value = "";
-        inf.value = "";
-        sup.disabled = false;
-        inf.disabled = false;
-    }
-}
+    db.ref('usuarios').once('value', (snapshot) => {
+        const listaUsuarios = snapshot.val();
+        let usuarioEncontrado = null;
 
-// ==========================================
-// 4. SCANNER OCR E CAPTURA DE FOTOS
-// ==========================================
-window.capturarFotoLote = function(input) {
-    const file = input.files[0];
-    if (!file) return;
+        if (listaUsuarios) {
+            usuarioEncontrado = Object.values(listaUsuarios).find(user => 
+                user.re === valor || (user.email && user.email.toUpperCase() === valor)
+            );
+        }
 
-    const labelSpan = input.previousElementSibling.querySelector('span');
-    const originalText = labelSpan.innerText;
-    labelSpan.innerText = "⏳ Lendo Lote... Aguarde";
+        if (usuarioEncontrado) {
+            const estaAprovado = (usuarioEncontrado.aprovado || usuarioEncontrado.status === 'aprovado');
+            const estaRecusado = (usuarioEncontrado.status === 'recusado');
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.getElementById('ocr-canvas');
-            if (!canvas) return;
-            
-            const ctx = canvas.getContext('2d');
-            const LARGURA_FIXA = 700; 
-            canvas.width = LARGURA_FIXA;
-            canvas.height = (img.height / img.width) * LARGURA_FIXA;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            
-            for (let i = 0; i < data.length; i += 4) {
-                let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                let pixelFinal = (cinza < 135) ? 0 : 255; 
-                data[i]     = pixelFinal;
-                data[i + 1] = pixelFinal;
-                data[i + 2] = pixelFinal;
+            if (feedbackLogin) {
+                if (estaRecusado) {
+                    feedbackLogin.innerText = "Cadastro reprovado/recusado.";
+                    feedbackLogin.className = "text-[11px] font-bold text-red-600 mt-1 pl-1";
+                } else if (estaAprovado) {
+                    feedbackLogin.innerText = "Usuário ativo!";
+                    feedbackLogin.className = "text-[11px] font-bold text-green-600 mt-1 pl-1";
+                } else {
+                    feedbackLogin.innerText = "Cadastro pendente de aprovação.";
+                    feedbackLogin.className = "text-[11px] font-bold text-amber-500 mt-1 pl-1";
+                }
             }
-            ctx.putImageData(imgData, 0, 0);
+            
+            let nomeParaExibir = "Colaborador";
+            if (usuarioEncontrado.apelido && usuarioEncontrado.apelido.trim() !== "") {
+                nomeParaExibir = usuarioEncontrado.apelido;
+            } else if (usuarioEncontrado.nome) {
+                nomeParaExibir = usuarioEncontrado.nome.trim().split(" ")[0]; 
+            }
 
-            Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
+            if (nomeReconhecimento) nomeReconhecimento.innerText = nomeParaExibir;
+            if (nivelReconhecimento) nivelReconhecimento.innerText = usuarioEncontrado.nivel || "Operador";
+            if (fotoReconhecimento) fotoReconhecimento.src = usuarioEncontrado.foto || 'https://www.w3schools.com/howto/img_avatar.png';
+            
+            boxReconhecimento.classList.remove('hidden');
+        } else {
+            if (feedbackLogin) {
+                feedbackLogin.innerText = "Colaborador não localizado.";
+                feedbackLogin.className = "text-[11px] font-bold text-red-500 mt-1 pl-1";
+            }
+            boxReconhecimento.classList.add('hidden');
+        }
+    });
+}
+
+if (inputIdentificador) {
+    inputIdentificador.addEventListener('input', verificarUsuario);
+}
+
+// ==========================================
+// 3. EXECUÇÃO DE LOGIN VIA NUVEM
+// ==========================================
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const identificador = inputIdentificador.value.trim().toUpperCase();
+        const senhaDigitada = document.getElementById('login-senha').value.replace(/\s+/g, ''); 
+
+        db.ref('usuarios').once('value', (snapshot) => {
+            const listaUsuarios = snapshot.val();
+            let usuarioValido = null;
+
+            if (listaUsuarios) {
+                usuarioValido = Object.values(listaUsuarios).find(user => 
+                    (user.re === identificador || (user.email && user.email.toUpperCase() === identificador)) && user.senha === senhaDigitada
+                );
+            }
+
+            if (usuarioValido) {
+                if (usuarioValido.status === 'recusado') {
+                    alert(`❌ Seu cadastro foi REPROVADO pelo seguinte motivo:\n\n"${usuarioValido.motivoRecusa || 'Dados inconsistentes'}"\n\nPor favor, realize um novo cadastro corrigindo estas informações.`);
+                    return;
+                }
+
+                if (!usuarioValido.aprovado && usuarioValido.status !== 'aprovado') {
+                    alert('⏳ Seu cadastro ainda não foi liberado por um superior. Por favor, aguarde a análise.');
+                    return;
+                }
+
+                sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioValido));
+                window.location.href = 'dashboard.html'; 
+            } else {
+                alert('Usuário ou senha incorreta! Certifique-se dos dados informados.');
+            }
+        });
+    });
+}
+
+// ==========================================
+// 4. CADASTRO DE NOVOS COLABORADORES (PUSH)
+// ==========================================
+const cadastroForm = document.getElementById('cadastro-form');
+if (cadastroForm) {
+    cadastroForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const nome = document.getElementById('cad-nome').value;
+        const apelido = document.getElementById('cad-apelido').value.trim();
+        const re = document.getElementById('cad-re').value.trim().toUpperCase();
+        const email = document.getElementById('cad-email').value.trim().toLowerCase();
+        const setor = document.getElementById('cad-setor').value;
+        const turno = document.getElementById('cad-turno').value;
+        const nivel = document.getElementById('cad-nivel').value;
+        
+        const senha = document.getElementById('cad-senha').value.replace(/\s+/g, '');
+        const senhaConfirma = document.getElementById('cad-senha-confirma').value.replace(/\s+/g, '');
+        const fotoInput = document.getElementById('cad-foto');
+
+        if (senha !== senhaConfirma) {
+            alert("Erro: A senha e a confirmação de senha não são iguais!");
+            return;
+        }
+
+        const temMaiuscula = /[A-Z]/.test(senha);
+        const temMinuscula = /[a-z]/.test(senha);
+        const temNumero = /[0-9]/.test(senha);
+        const temEspecial = /[^A-Za-z0-9]/.test(senha);
+
+        if (senha.length < 8 || !temMaiuscula || !temMinuscula || !temNumero || !temEspecial) {
+            alert("Sua senha não atende aos requisitos!\n\nMínimo 8 dígitos, 1 Letra Maiúscula, 1 Minúscula, 1 Número e 1 Caractere Especial.");
+            return;
+        }
+
+        db.ref('usuarios').once('value', (snapshot) => {
+            const listaUsuarios = snapshot.val() || {};
+            
+            const jaExiste = Object.values(listaUsuarios).some(user => user.email === email || user.re === re);
+            if (jaExiste) {
+                alert('Este ID ou E-mail já constam registrados no sistema central!');
+                return;
+            }
+
+            let fotoBase64 = "";
+            const previewImg = document.getElementById('foto-preview');
+            if (fotoInput && fotoInput.files && fotoInput.files.length > 0 && previewImg) {
+                fotoBase64 = previewImg.src;
+            }
+
+            const novoUsuario = { 
+                nome, 
+                apelido, 
+                re, 
+                email, 
+                setor, 
+                turno, 
+                nivel, 
+                senha, 
+                foto: fotoBase64, 
+                aprovado: false,
+                status: "pendente"
+            };
+
+            db.ref('usuarios/' + re).set(novoUsuario)
+            .then(() => {
+                alert('Solicitação enviada para a nuvem! Aguarde a liberação do seu Supervisor, Qualidade ou ADM.');
+                cadastroForm.reset();
+                const previewCont = document.getElementById('preview-container');
+                if (previewCont) previewCont.classList.add('hidden');
+                alternarTelas(); // Chamada correta: interna ao sucesso do envio
             })
-            .then(({ data: { text } }) => {
-                const linhas = text.split('\n')
-                    .map(linha => {
-                        let l = linha.trim().toUpperCase();
-                        l = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
+            .catch(err => {
+                console.error("Erro ao registrar usuário:", err);
+                alert("Falha de conexão ao enviar o cadastro.");
+            });
+        });
+    });
+}
 
-                        if (l.startsWith("LS")) {
-                            if (l.charAt(2) === 'E' || l.charAt(2) === 'B') {
-                                l = 'LSP' + l.substring(3);
-                            }
-window.capturarFotoLote = function(input) {
-    const file = input.files[0];
-    if (!file) return;
+// Tratamento e Compressão de Foto de Perfil
+const cadFotoBtn = document.getElementById('cad-foto');
+if (cadFotoBtn) {
+    cadFotoBtn.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
 
-    const labelSpan = input.previousElementSibling.querySelector('span');
-    const originalText = labelSpan.innerText;
-    labelSpan.innerText = "⏳ Lendo Lote... Aguarde";
+                    const MAX_LARGURA = 200;
+                    const MAX_ALTURA = 200;
+                    let largura = img.width;
+                    let altura = img.height;
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.getElementById('ocr-canvas');
-            if (!canvas) return;
-            
-            const ctx = canvas.getContext('2d');
-            const LARGURA_FIXA = 700; 
-            canvas.width = LARGURA_FIXA;
-            canvas.height = (img.height / img.width) * LARGURA_FIXA;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            
-            for (let i = 0; i < data.length; i += 4) {
-                let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                let pixelFinal = (cinza < 135) ? 0 : 255; 
-                data[i]     = pixelFinal;
-                data[i + 1] = pixelFinal;
-                data[i + 2] = pixelFinal;
-            }
-            ctx.putImageData(imgData, 0, 0);
+                    if (largura > altura) {
+                        if (largura > MAX_LARGURA) {
+                            altura *= MAX_LARGURA / largura;
+                            largura = MAX_LARGURA;
+                        }
+                    } else {
+                        if (altura > MAX_ALTURA) {
+                            largura *= MAX_ALTURA / altura;
+                            altura = MAX_ALTURA;
+                        }
+                    }
 
-            // Gera o link leve em formato JPEG para o processamento
-            const imagemProcessada = canvas.toDataURL('image/jpeg', 0.8);
+                    canvas.width = largura;
+                    canvas.height = altura;
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(0, 0, largura, altura);
+                    ctx.drawImage(img, 0, 0, largura, altura);
 
-            // --- 🚨 LIMPEZA DE MEMÓRIA CRÍTICA (O PULO DO GATO) ---
+                    const fotoProcessadaBase64 = canvas.toDataURL('image/jpeg', 0.75);
+
+                    const previewImg = document.getElementById('foto-preview');
+                    const previewCont = document.getElementById('preview-container');
+                    
+                    if (previewImg) previewImg.src = fotoProcessadaBase64;
+                    if (previewCont) previewCont.classList.remove('hidden');
+                };
+                
+                img.onerror = function() {
+                    alert("Erro ao processar o formato desta imagem.");
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+} (O PULO DO GATO) ---
             img.onload = null;
             img.src = ""; // Arranca a foto bruta original de 10MB da memória RAM imediatamente!
 
