@@ -208,6 +208,60 @@ window.capturarFotoLote = function(input) {
                             if (l.charAt(2) === 'E' || l.charAt(2) === 'B') {
                                 l = 'LSP' + l.substring(3);
                             }
+window.capturarFotoLote = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const labelSpan = input.previousElementSibling.querySelector('span');
+    const originalText = labelSpan.innerText;
+    labelSpan.innerText = "⏳ Lendo Lote... Aguarde";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.getElementById('ocr-canvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const LARGURA_FIXA = 700; 
+            canvas.width = LARGURA_FIXA;
+            canvas.height = (img.height / img.width) * LARGURA_FIXA;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                let pixelFinal = (cinza < 135) ? 0 : 255; 
+                data[i]     = pixelFinal;
+                data[i + 1] = pixelFinal;
+                data[i + 2] = pixelFinal;
+            }
+            ctx.putImageData(imgData, 0, 0);
+
+            // Gera o link leve em formato JPEG para o processamento
+            const imagemProcessada = canvas.toDataURL('image/jpeg', 0.8);
+
+            // --- 🚨 LIMPEZA DE MEMÓRIA CRÍTICA (O PULO DO GATO) ---
+            img.onload = null;
+            img.src = ""; // Arranca a foto bruta original de 10MB da memória RAM imediatamente!
+
+            // Agora o Tesseract roda com o celular leve e com memória livre
+            Tesseract.recognize(imagemProcessada, 'por+eng', {
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
+            })
+            .then(({ data: { text } }) => {
+                const linhas = text.split('\n')
+                    .map(linha => {
+                        let l = linha.trim().toUpperCase();
+                        l = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
+
+                        if (l.startsWith("LS")) {
+                            if (l.charAt(2) === 'E' || l.charAt(2) === 'B') {
+                                l = 'LSP' + l.substring(3);
+                            }
                             let prefixo = l.substring(0, 3);
                             let corpo = l.substring(3);
                             
@@ -241,12 +295,15 @@ window.capturarFotoLote = function(input) {
             })
             .finally(() => {
                 labelSpan.innerText = originalText;
+                canvas.width = 0; // Zera o canvas para garantir que não sobrou lixo de pixel
+                canvas.height = 0;
             });
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
+
 
 function CalculeLoteFormatado(textoStr) {
     return textoStr;
