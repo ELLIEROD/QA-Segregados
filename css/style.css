@@ -160,3 +160,34 @@ th {
     z-index: 50;
     box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
 }
+/* ==========================================================================
+   5. DASHBOARD COM IMAGEM DE FUNDO CORPORATIVA
+   ========================================================================== */
+
+/* Puxa a imagem de fundo do index e trava ela na tela do Dashboard */
+.bg-dashboard-corporativo {
+    background-image: url('../img/background.png'); /* Caminho para a sua imagem */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed; /* Mantém o fundo fixo enquanto você rola a página */
+    min-height: 100vh;
+}
+
+/* O efeito fosco (Filtro jateado sobre a imagem) */
+.camada-fosca {
+    background-color: rgba(248, 250, 252, 0.88); /* Camada branca suave com 88% de opacidade */
+    backdrop-filter: blur(15px); /* Borra suavemente as cores da imagem de fundo */
+    -webkit-backdrop-filter: blur(15px); /* Compatibilidade para iPhones/Safari */
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* Painéis brancos sólidos que "saltam" sobre o fundo fosco */
+.painel-destacado {
+    background-color: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    border-radius: 16px;
+}
