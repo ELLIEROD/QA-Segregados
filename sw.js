@@ -1,4 +1,5 @@
-const CACHE_NAME = 'qa-v5'; // Atualizado para v5 para forçar a renovação do CSS!
+const CACHE_NAME = 'qa-v6'; // Força o navegador a jogar o lixo velho fora
+
 const ASSETS = [
   './',
   './index.html',
