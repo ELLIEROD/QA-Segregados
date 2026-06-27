@@ -73,6 +73,9 @@ function inicializarAdminsMaster() {
 }
 inicializarAdminsMaster();
 
+// Recupera a sessão do usuário logado de forma segura
+const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado')) || { nome: "Operador", nivel: "Operador", re: "000" };
+
 // Captura de elementos da interface
 const inputIdentificador = document.getElementById('login-identificador');
 const feedbackLogin = document.getElementById('login-feedback');
@@ -257,7 +260,7 @@ if (cadastroForm) {
                 cadastroForm.reset();
                 const previewCont = document.getElementById('preview-container');
                 if (previewCont) previewCont.classList.add('hidden');
-                alternarTelas(); // Chamada correta: interna ao sucesso do envio
+                alternarTelas(); 
             })
             .catch(err => {
                 console.error("Erro ao registrar usuário:", err);
@@ -320,41 +323,10 @@ if (cadFotoBtn) {
             reader.readAsDataURL(file);
         }
     });
-} (O PULO DO GATO) ---
-            img.onload = null;
-            img.src = ""; // Arranca a foto bruta original de 10MB da memória RAM imediatamente!
+}
 
-            // Agora o Tesseract roda com o celular leve e com memória livre
-            Tesseract.recognize(imagemProcessada, 'por+eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
-            })
-            .then(({ data: { text } }) => {
-                const linhas = text.split('\n')
-                    .map(linha => {
-                        let l = linha.trim().toUpperCase();
-                        l = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
-
-                        if (l.startsWith("LS")) {
-                            if (l.charAt(2) === 'E' || l.charAt(2) === 'B') {
-                                l = 'LSP' + l.substring(3);
-                            }
-                            let prefixo = l.substring(0, 3);
-                            let corpo = l.substring(3);
-                            
-                            corpo = corpo.replace(/Z/g, '2')
-                                         .replace(/O/g, '0')
-                                         .replace(/S/g, '5')
-                                         .replace(/I/g, '1')
-                                         .replace(/T/g, '7')
-                                         .replace(/A/g, '41')
-                                         .replace(/L/g, '77');
-                            
-                            l = prefixo + corpo;
-                        }
-                        return l;
-                    })
 // ==========================================
-// 1. LEITURA DE LOTE (OCR COM TESSERACT E LIMPEZA)
+// 5. LEITURA DE LOTE (OCR COM TESSERACT E LIMPEZA)
 // ==========================================
 window.capturarFotoLote = function(input) {
     const file = input.files[0];
@@ -389,14 +361,12 @@ window.capturarFotoLote = function(input) {
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Gera o link leve em formato JPEG para o processamento
             const imagemProcessada = canvas.toDataURL('image/jpeg', 0.8);
 
             // --- 🚨 LIMPEZA DE MEMÓRIA CRÍTICA ---
             img.onload = null;
-            img.src = ""; // Arranca a foto bruta original da memória RAM imediatamente!
+            img.src = ""; 
 
-            // Agora o Tesseract roda com o celular leve e com memória livre
             Tesseract.recognize(imagemProcessada, 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
             })
@@ -429,7 +399,7 @@ window.capturarFotoLote = function(input) {
                 
                 if (linhas.length >= 2) {
                     document.getElementById('prod-lote-sup').value = linhas[0];
-                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhas[1]);
+                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatated(linhas[1]);
                 } else if (linhas.length === 1) {
                     document.getElementById('prod-lote-sup').value = linhas[0];
                     document.getElementById('prod-lote-inf').value = "";
@@ -443,7 +413,7 @@ window.capturarFotoLote = function(input) {
             })
             .finally(() => {
                 labelSpan.innerText = originalText;
-                canvas.width = 0; // Zera o canvas para garantir que não sobrou lixo de pixel
+                canvas.width = 0; 
                 canvas.height = 0;
             });
         };
@@ -452,12 +422,12 @@ window.capturarFotoLote = function(input) {
     reader.readAsDataURL(file);
 };
 
-function CalculeLoteFormatado(textoStr) {
+function CalculeLoteFormatated(textoStr) {
     return textoStr;
 }
 
 // ==========================================
-// 2. FOTO DE EVIDÊNCIA (COMPRIMIDA E SEGURA)
+// 6. FOTO DE EVIDÊNCIA (COMPRIMIDA E SEGURA)
 // ==========================================
 window.capturarFotoEvidencia = function(input) {
     const file = input.files[0];
@@ -481,7 +451,6 @@ window.capturarFotoEvidencia = function(input) {
                 document.getElementById('prod-foto-preview').src = fotoComprimidaBase64;
                 document.getElementById('prod-preview-container').classList.remove('hidden');
                 
-                // --- LIMPEZA DE MEMÓRIA ---
                 img.onload = null;
                 img.src = ""; 
                 canvas.width = 0; 
@@ -494,65 +463,67 @@ window.capturarFotoEvidencia = function(input) {
 };
 
 // ==========================================
-// 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
+// 7. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
+const formSegregacao = document.getElementById('form-segregacao');
+if (formSegregacao) {
+    formSegregacao.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const linha = document.getElementById('prod-linha').value;
+        const produto = document.getElementById('prod-nome').value;
+        
+        const loteSuperior = document.getElementById('prod-lote-sup').value.trim().toUpperCase();
+        const loteInferior = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
+        const loteConsolidado = loteSuperior + " | " + loteInferior;
 
-document.getElementById('form-segregacao').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const linha = document.getElementById('prod-linha').value;
-    const produto = document.getElementById('prod-nome').value;
-    
-    const loteSuperior = document.getElementById('prod-lote-sup').value.trim().toUpperCase();
-    const loteInferior = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
-    const loteConsolidado = loteSuperior + " | " + loteInferior;
+        const dollys = document.getElementById('prod-dollys').value;
+        const cestos = document.getElementById('prod-cestos').value;
+        const qtdTexto = document.getElementById('prod-qtd-total-display').innerText;
 
-    const dollys = document.getElementById('prod-dollys').value;
-    const cestos = document.getElementById('prod-cestos').value;
-    const qtdTexto = document.getElementById('prod-qtd-total-display').innerText;
+        const motivo = document.getElementById('prod-motivo').value;
+        const observacoes = document.getElementById('prod-observacoes').value.trim();
+        const fotoProduto = document.getElementById('prod-preview-container').classList.contains('hidden') ? "" : document.getElementById('prod-foto-preview').src;
 
-    const motivo = document.getElementById('prod-motivo').value;
-    const observacoes = document.getElementById('prod-observacoes').value.trim();
-    const fotoProduto = document.getElementById('prod-preview-container').classList.contains('hidden') ? "" : document.getElementById('prod-foto-preview').src;
+        const agora = new Date();
+        const dataHoraStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
-    const agora = new Date();
-    const dataHoraStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        const novoItem = { 
+            id: Date.now(), 
+            linha,
+            produto, 
+            lote: loteConsolidado, 
+            quantidade: `${qtdTexto} (${dollys}D + ${cestos}C)`, 
+            motivo: motivo,
+            observacao: observacoes, 
+            foto: fotoProduto, 
+            dataHora: dataHoraStr, 
+            responsavel: usuarioLogado.nome, 
+            status: "Pendente" 
+        };
 
-    const novoItem = { 
-        id: Date.now(), 
-        linha,
-        produto, 
-        lote: loteConsolidado, 
-        quantidade: `${qtdTexto} (${dollys}D + ${cestos}C)`, 
-        motivo: motivo,
-        observacao: observacoes, 
-        foto: fotoProduto, 
-        dataHora: dataHoraStr, 
-        responsavel: usuarioLogado.nome, 
-        status: "Pendente" 
-    };
-
-    db.ref('segregados/' + novoItem.id).set(novoItem)
-    .then(() => {
-        alert("Registro de segregação efetuado com sucesso na nuvem!");
-        this.reset();
-        document.getElementById('prod-lote-sup').disabled = false;
-        document.getElementById('prod-lote-inf').disabled = false;
-        document.getElementById('prod-preview-container').classList.add('hidden');
-        document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
-    })
-    .catch((error) => {
-        console.error("Erro ao salvar no Firebase:", error);
-        alert("Erro técnico ao salvar dados na nuvem.");
+        db.ref('segregados/' + novoItem.id).set(novoItem)
+        .then(() => {
+            alert("Registro de segregação efetuado com sucesso na nuvem!");
+            formSegregacao.reset();
+            document.getElementById('prod-lote-sup').disabled = false;
+            document.getElementById('prod-lote-inf').disabled = false;
+            document.getElementById('prod-preview-container').classList.add('hidden');
+            document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
+        })
+        .catch((error) => {
+            console.error("Erro ao salvar no Firebase:", error);
+            alert("Erro técnico ao salvar dados na nuvem.");
+        });
     });
-});
+}
 
 window.julgarLote = function(id, statusFinal) {
     if (!confirm(`Confirma a ação técnica de aplicar o status [${statusFinal.toUpperCase()}] para este lote? Ele será direcionado para o histórico.`)) return;
 
     db.ref('segregados/' + id).update({ status: statusFinal })
     .then(() => {
-        alert("Status atualizado com sucesso na nuvem!");
+        alert("Status updated com sucesso na nuvem!");
     })
     .catch(error => console.error("Erro ao julgar lote:", error));
 }
@@ -568,10 +539,10 @@ window.excluirItemHistorico = function(id) {
 }
 
 // ==========================================
-// 6. FILTROS E RENDERIZAÇÃO DAS TABELAS (VISUAL)
+// 8. FILTROS E RENDERIZAÇÃO DAS TABELAS (VISUAL)
 // ==========================================
 let filtroTempoAtivo = '7dias';
-let dadosSegregadosCache = []; // Armazena o snapshot atual na memória para uso dos filtros visuais
+let dadosSegregadosCache = []; 
 
 function carregarTabelaSegregados(segregados) {
     const tabela = document.getElementById('tabela-segregados');
@@ -715,7 +686,7 @@ window.fecharZoomFoto = function() {
 }
 
 // ==========================================
-// 7. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
+// 9. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
 // ==========================================
 function atualizarTabelaUsuarios(listaUsuarios) {
     let tabela = document.getElementById('tabela-usuarios-adm');
@@ -735,7 +706,6 @@ function atualizarTabelaUsuarios(listaUsuarios) {
             contagemPendentes++;
         }
 
-        // Gera uma chave segura para o Firebase usando o ID ou RE
         let userKey = user.re || user.email.replace(/[.#$\[\]]/g, "_");
 
         let linhaHTML = `
@@ -797,7 +767,7 @@ window.excluirUsuario = function(userKey) {
 }
 
 // ==========================================
-// 8. MODAL EDITAR PERFIL
+// 10. MODAL EDITAR PERFIL
 // ==========================================
 window.abrirModalPerfil = function() {
     document.getElementById('edit-nome').value = usuarioLogado.nome || '';
@@ -816,8 +786,9 @@ window.fecharModalPerfil = function() {
     document.getElementById('modal-perfil').classList.add('hidden'); 
 }
 
-if (document.getElementById('edit-foto')) {
-    document.getElementById('edit-foto').addEventListener('change', function(e) {
+const editFoto = document.getElementById('edit-foto');
+if (editFoto) {
+    editFoto.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
@@ -859,60 +830,63 @@ if (document.getElementById('edit-foto')) {
     });
 }
 
-document.getElementById('form-editar-perfil').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const novoNome = document.getElementById('edit-nome').value.trim();
-    const novoApelido = document.getElementById('edit-apelido').value.trim();
-    const novoSetor = document.getElementById('edit-setor').value;
-    const novoTurno = document.getElementById('edit-turno').value;
-    const senhaNova = document.getElementById('edit-senha-nova').value.replace(/\s+/g, '');
-    const senhaConfirma = document.getElementById('edit-senha-confirma').value.replace(/\s+/g, '');
-    const fotoNova = document.getElementById('edit-perfil-preview').src;
+const formEditarPerfil = document.getElementById('form-editar-perfil');
+if (formEditarPerfil) {
+    formEditarPerfil.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const novoNome = document.getElementById('edit-nome').value.trim();
+        const novoApelido = document.getElementById('edit-apelido').value.trim();
+        const novoSetor = document.getElementById('edit-setor').value;
+        const novoTurno = document.getElementById('edit-turno').value;
+        const senhaNova = document.getElementById('edit-senha-nova').value.replace(/\s+/g, '');
+        const senhaConfirma = document.getElementById('edit-senha-confirma').value.replace(/\s+/g, '');
+        const fotoNova = document.getElementById('edit-perfil-preview').src;
 
-    let senhaDestino = usuarioLogado.senha;
+        let senhaDestino = usuarioLogado.senha;
 
-    if (senhaNova.length > 0) {
-        if (senhaNova !== senhaConfirma) {
-            alert("Erro: A nova senha e a confirmação não batem!");
-            return;
+        if (senhaNova.length > 0) {
+            if (senhaNova !== senhaConfirma) {
+                alert("Erro: A nova senha e a confirmação não batem!");
+                return;
+            }
+            const temMaiuscula = /[A-Z]/.test(senhaNova);
+            const temMinuscula = /[a-z]/.test(senhaNova);
+            const temNumero = /[0-9]/.test(senhaNova);
+            const temEspecial = /[^A-Za-z0-9]/.test(senhaNova);
+
+            if (senhaNova.length < 8 || !temMaiuscula || !temMinuscula || !temNumero || !temEspecial) {
+                alert("Sua nova senha não atende aos requisitos mínimos!");
+                return;
+            }
+            senhaDestino = senhaNova;
+            alert("Sua senha foi atualizada com sucesso!");
         }
-        const temMaiuscula = /[A-Z]/.test(senhaNova);
-        const temMinuscula = /[a-z]/.test(senhaNova);
-        const temNumero = /[0-9]/.test(senhaNova);
-        const temEspecial = /[^A-Za-z0-9]/.test(senhaNova);
 
-        if (senhaNova.length < 8 || !temMaiuscula || !temMinuscula || !temNumero || !temEspecial) {
-            alert("Sua nova senha não atende aos requisitos mínimos!");
-            return;
-        }
-        senhaDestino = senhaNova;
-        alert("Sua senha foi atualizada com sucesso!");
-    }
+        const dadosAtualizados = {
+            ...usuarioLogado,
+            nome: novoNome,
+            apelido: novoApelido,
+            setor: novoSetor,
+            turno: novoTurno,
+            senha: senhaDestino,
+            foto: fotoNova
+        };
 
-    const dadosAtualizados = {
-        ...usuarioLogado,
-        nome: novoNome,
-        apelido: novoApelido,
-        setor: novoSetor,
-        turno: novoTurno,
-        senha: senhaDestino,
-        foto: fotoNova
-    };
+        let userKey = usuarioLogado.re || usuarioLogado.email.replace(/[.#$\[\]]/g, "_");
 
-    let userKey = usuarioLogado.re || usuarioLogado.email.replace(/[.#$\[\]]/g, "_");
-
-    db.ref('usuarios/' + userKey).update(dadosAtualizados)
-    .then(() => {
-        sessionStorage.setItem('usuarioLogado', JSON.stringify(dadosAtualizados));
-        alert("Perfil profissional atualizado na nuvem!");
-        location.reload();
-    })
-    .catch(err => {
-        console.error("Erro ao atualizar perfil:", err);
-        alert("Erro técnico ao salvar alterações.");
+        db.ref('usuarios/' + userKey).update(dadosAtualizados)
+        .then(() => {
+            sessionStorage.setItem('usuarioLogado', JSON.stringify(dadosAtualizados));
+            alert("Perfil profissional updated na nuvem!");
+            location.reload();
+        })
+        .catch(err => {
+            console.error("Erro ao atualizar perfil:", err);
+            alert("Erro técnico ao salvar alterações.");
+        });
     });
-});
+}
 
 window.excluirMinhaConta = function() {
     if(!confirm("Você excluirá sua conta do sistema de forma permanente. Prosseguir?")) return;
@@ -920,15 +894,13 @@ window.excluirMinhaConta = function() {
     
     db.ref('usuarios/' + userKey).remove()
     .then(() => {
-        logout();
+        window.location.href = 'index.html';
     });
 }
 
 // ==========================================
-// 9. ESCUTA ATIVA EM TEMPO REAL (FIREBASE -> UI)
+// 11. ESCUTA ATIVA EM TEMPO REAL (FIREBASE -> UI)
 // ==========================================
-
-// Escuta em tempo real para os Produtos Segregados
 db.ref('segregados').on('value', (snapshot) => {
     const dados = snapshot.val();
     dadosSegregadosCache = [];
@@ -943,7 +915,6 @@ db.ref('segregados').on('value', (snapshot) => {
     carregarTabelaArquivo(dadosSegregadosCache);
 });
 
-// Escuta em tempo real para a Tabela de Controle de Usuários (Apenas se o cargo permitir ver o elemento na tela)
 if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) {
     db.ref('usuarios').on('value', (snapshot) => {
         const dados = snapshot.val();
