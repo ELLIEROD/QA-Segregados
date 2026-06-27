@@ -1,12 +1,16 @@
 {
   "short_name": "QualidadeQA",
+  "id": "/QA-Segregados/",
   "name": "Controle de Qualidade e Segregação - QA",
+  "description": "Aplicativo para controle de qualidade, registro de auditorias e gerenciamento de segregação de produtos na linha de produção.",
   "icons": [
     {
+     {
       "src": "img/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192",
+      "sizes": "256x256",
       "purpose": "any maskable"
+    }
     },
     {
       "src": "img/icon-512.png",
