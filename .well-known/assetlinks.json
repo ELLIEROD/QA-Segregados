@@ -1,18 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.ellierod.calculadorapaes",
-      "sha256_cert_fingerprints": ["ASSINATURA_DO_APP_1"]
-    }
-  },
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.ellierod.qualidadeqa",
-      "sha256_cert_fingerprints": ["ASSINATURA_DO_APP_2"]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.ellierod.qa",
+        "sha256_cert_fingerprints": ["75:96:32:44:70:B1:4A:EB:C2:8A:FD:A7:BD:AB:24:60:D8:5C:F2:CE:66:5C:69:B7:FF:DE:F2:24:2D:40:B5:DB"]
+      }
+    }]
