@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v6'; // Força o navegador a jogar o lixo velho fora
+const CACHE_NAME = 'qa-v7'; // Força o navegador a jogar o lixo velho fora
 
 const ASSETS = [
   './',
