@@ -80,7 +80,8 @@
                                 <label for="prod-foto-lote" class="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-2 transition w-full justify-center">
                                     📸 <span>Tirar Foto para Escanear Lote Automático</span>
                                 </label>
-                                <input type="file" id="prod-foto-lote" accept="image/*" capture="environment" class="hidden" onchange="capturarFotoLote(this)">
+                                <input type="file" id="prod-foto" accept="image/*" onchange="capturarFotoEvidencia(this)">
+                                
                             </div>
                             <canvas id="ocr-canvas" class="hidden"></canvas>
 
