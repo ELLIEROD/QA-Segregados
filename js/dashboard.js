@@ -260,8 +260,6 @@ window.capturarFotoEvidencia = function(input) {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                
-                // Define a largura máxima de 800px (excelente para o Firebase e leve para o celular)
                 const max_width = 800; 
                 const scale = max_width / img.width;
                 
@@ -271,14 +269,16 @@ window.capturarFotoEvidencia = function(input) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                // Transforma em JPEG leve (60% de qualidade)
                 const fotoComprimidaBase64 = canvas.toDataURL('image/jpeg', 0.6);
                 
-                // Alimenta o preview com a imagem LEVE
                 document.getElementById('prod-foto-preview').src = fotoComprimidaBase64;
                 document.getElementById('prod-preview-container').classList.remove('hidden');
                 
-                console.log("Imagem comprimida com sucesso para o Firebase!");
+                // --- LIMPEZA DE MEMÓRIA (O PULO DO GATO) ---
+                img.onload = null;
+                img.src = ""; // Remove a imagem bruta da memória RAM
+                canvas.width = 0; // Destrói o canvas interno
+                canvas.height = 0;
             };
             img.src = e.target.result;
         };
