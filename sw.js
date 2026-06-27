@@ -1,16 +1,15 @@
-const CACHE_NAME = 'qa-v8'; // Força o navegador a jogar o lixo velho fora
-
+const CACHE_NAME = 'qa-v9'; // Mudei para v2 para o celular do pessoal atualizar!
 const ASSETS = [
-  './',
-  './index.html',
-  './dashboard.html',
-  './manifest.json',
-  './css/style.css',       // <--- ADICIONADO (Ajuste o nome do arquivo se for diferente de style.css)
-  './js/config.js',
-  './js/auth.js',
-  './js/dashboard.js',
-  './img/icon-192.png',
-  './img/icon-512.png'
+  '/',
+  '/index.html',
+  '/dashboard.html',
+  '/manifest.json',
+  '/favicon.ico',     // Adicionado
+  '/icon-192.png',    // Adicionado
+  '/icon-512.png',    // Adicionado
+  '/js/config.js',
+  '/js/auth.js',
+  '/js/dashboard.js'
 ];
 
 // Instalação do Service Worker e Cache dos arquivos essenciais
@@ -28,20 +27,5 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(response => {
       return response || fetch(e.request);
     })
-  );
-});
-// Limpa os caches antigos e ativa o novo Service Worker imediatamente
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.map(key => {
-          if (key !== CACHE_NAME) {
-            console.log('Removendo cache antigo:', key);
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => self.clients.claim()) // Força o app a usar o SW novo na hora
   );
 });
