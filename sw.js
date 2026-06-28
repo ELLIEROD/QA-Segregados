@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v9'; // Mudei para v2 para o celular do pessoal atualizar!
+const CACHE_NAME = 'qa-v2'; // 
 const ASSETS = [
   '/',
   '/index.html',
