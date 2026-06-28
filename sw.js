@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v2'; // 
+const CACHE_NAME = 'qa-v3'; // 
 const ASSETS = [
   '/',
   '/index.html',
