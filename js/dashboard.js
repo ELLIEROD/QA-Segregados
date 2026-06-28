@@ -1,332 +1,166 @@
 // ==========================================
-// 0. FUNÇÕES AUXILIARES GLOBAIS (Carregam primeiro para evitar erros no HTML)
+// 1. CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE
 // ==========================================
+
+// O objeto firebaseConfig agora vem centralizado do arquivo js/config.js
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ==========================================
+// 2. CONTROLE DE AUTENTICAÇÃO E PERFIL
+// ==========================================
+const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+
+// Só expulsa se NÃO estiver logado E se o usuário não estiver na página de login
+if (!usuarioLogado && !window.location.pathname.includes('index.html')) {
+    window.location.href = 'index.html';
+}
+
+// Atualizar cabeçalho
+let nomeTopo = usuarioLogado.apelido && usuarioLogado.apelido.trim() !== "" ? usuarioLogado.apelido : (usuarioLogado.nome ? usuarioLogado.nome.trim().split(" ")[0] : "Colaborador");
+document.getElementById('dash-user-nome').innerText = nomeTopo;
+document.getElementById('dash-user-perfil').innerText = usuarioLogado.nivel;
+document.getElementById('dash-user-foto').src = usuarioLogado.foto || 'https://www.w3schools.com/howto/img_avatar.png';
+
+// Liberar aba de gerenciamento apenas para cargos habilitados
+if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) {
+    document.getElementById('aba-usuarios-btn').classList.remove('hidden');
+}
+
+if (usuarioLogado.nivel === "Qualidade") {
+    document.querySelector('#area-formulario h2').innerText = "📌 Registrar Produto (Modo QA Habilitado)";
+}
+
+// Banco de Dados de Produtos organizados por Linha e Regras de Embalagem
+const BANCO_PRODUTOS = {
+    "Bolleria": [
+        { codigo: "101", nome: "Ana Maria Chocolate", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "102", nome: "Ana Maria Baunilha", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "103", nome: "Mini Bolo Gotas", cestosPorDolly: 24, produtosPorCesto: 15 }
+    ],
+    "Linha 3": [
+        { codigo: "201", nome: "Pão de Forma Tradicional", cestosPorDolly: 28, produtosPorCesto: 10 },
+        { codigo: "202", nome: "Pão de Forma Integral", cestosPorDolly: 28, produtosPorCesto: 10 }
+    ],
+    "Linha 20K": [
+        { codigo: "301", nome: "Bisnaguinha Pullmann", cestosPorDolly: 30, produtosPorCesto: 16 },
+        { codigo: "302", nome: "Rap10 Tradicional", cestosPorDolly: 40, produtosPorCesto: 20 }
+    ]
+};
+
+// Controla a alternância de abas principais do painel
+window.mudarAba = function(aba) {
+    const secoes = {
+        'segregacao': 'secao-segregacao',
+        'usuarios': 'secao-usuarios',
+        'arquivo': 'secao-arquivo'
+    };
+    
+    const botoes = {
+        'segregacao': 'aba-segregacao-btn',
+        'usuarios': 'aba-usuarios-btn',
+        'arquivo': 'aba-arquivo-btn'
+    };
+
+    Object.keys(secoes).forEach(key => {
+        const secaoEl = document.getElementById(secoes[key]);
+        const botaoEl = document.getElementById(botoes[key]);
+        
+        if (key === aba) {
+            if(secaoEl) secaoEl.classList.remove('hidden');
+            if(botaoEl) botaoEl.classList.add('text-blue-700', 'border-b-2', 'border-blue-700');
+        } else {
+            if(secaoEl) secaoEl.classList.add('hidden');
+            if(botaoEl) botaoEl.classList.remove('text-blue-700', 'border-b-2', 'border-blue-700');
+        }
+    });
+}
+
+// Funções de logout e interface de segurança
+window.logout = function() { 
+    sessionStorage.removeItem('usuarioLogado'); 
+    window.location.href = 'index.html'; 
+};
+
 window.toggleVisibilidadeSenha = function(inputId, botao) {
     const input = document.getElementById(inputId);
-    if (!input) return;
     if (input.type === "password") {
         input.type = "text";
-        botao.innerText = "🔒"; 
+        botao.innerText = "🔒";
     } else {
         input.type = "password";
         botao.innerText = "👁️";
     }
 }
 
-function alternarTelas() {
-    const loginSec = document.getElementById('login-section');
-    const cadSec = document.getElementById('cadastro-section');
-    const boxReconhecimento = document.getElementById('user-recognition');
-    if (loginSec) loginSec.classList.toggle('hidden');
-    if (cadSec) cadSec.classList.toggle('hidden');
-    if (boxReconhecimento) boxReconhecimento.classList.add('hidden');
-}
-
-// Fazer a função ser vista pelo clique dos botões do index.html
-window.alternarTelas = alternarTelas;
-
 // ==========================================
-// 1. INICIALIZAÇÃO DO FIREBASE (AUTH/INDEX)
+// 3. LÓGICA DE PRODUÇÃO E CÁLCULOS
 // ==========================================
-if (typeof firebaseConfig !== 'undefined') {
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-}
-const db = firebase.database();
 
-// Criar DOIS Administradores Master padrões na Nuvem caso o banco esteja vazio
-function inicializarAdminsMaster() {
-    db.ref('usuarios').once('value', (snapshot) => {
-        if (!snapshot.exists()) {
-            const adminsIniciais = {
-                "ADM001": {
-                    nome: "Admin Geral 1",
-                    apelido: "Admin 1",
-                    re: "ADM001",
-                    email: "admin1@grupobimbo.com",
-                    setor: "Qualidade",
-                    turno: "Administrativo",
-                    nivel: "Administrador",
-                    senha: "AdminBimbo@2026", 
-                    foto: "",
-                    status: "aprovado",
-                    aprovado: true
-                },
-                "ADM002": {
-                    nome: "Admin Geral 2",
-                    apelido: "Admin 2",
-                    re: "ADM002",
-                    email: "admin2@grupobimbo.com",
-                    setor: "Qualidade",
-                    turno: "Administrativo",
-                    nivel: "Administrador",
-                    senha: "SegurancaBimbo#99",
-                    foto: "",
-                    status: "aprovado",
-                    aprovado: true
-                }
-            };
-            db.ref('usuarios').set(adminsIniciais);
-        }
-    });
-}
-inicializarAdminsMaster();
-
-// Recupera a sessão do usuário logado de forma segura
-const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado')) || { nome: "Operador", nivel: "Operador", re: "000" };
-
-// Captura de elementos da interface
-const inputIdentificador = document.getElementById('login-identificador');
-const feedbackLogin = document.getElementById('login-feedback');
-const boxReconhecimento = document.getElementById('user-recognition');
-const fotoReconhecimento = document.getElementById('user-recon-foto');
-const nomeReconhecimento = document.getElementById('user-recon-nome');
-const nivelReconhecimento = document.getElementById('user-recon-nivel');
-
-// ==========================================
-// 2. RECONHECIMENTO DINÂMICO (PULL DO FIREBASE)
-// ==========================================
-function verificarUsuario() {
-    if (!inputIdentificador || !boxReconhecimento) return;
+window.atualizarListaProdutos = function() {
+    const linhaSelecionada = document.getElementById('prod-linha').value;
+    const selectProduto = document.getElementById('prod-nome');
     
-    const valor = inputIdentificador.value.trim().toUpperCase();
-    if (valor.length < 3) {
-        boxReconhecimento.classList.add('hidden');
-        if (feedbackLogin) feedbackLogin.innerText = "Digite seu ID ou e-mail cadastrado.";
-        if (feedbackLogin) feedbackLogin.className = "text-[11px] font-medium text-slate-400 mt-1 pl-1";
+    selectProduto.innerHTML = '<option value="">-- Selecione o Produto --</option>';
+    
+    if (!linhaSelecionada || !BANCO_PRODUTOS[linhaSelecionada]) {
+        selectProduto.innerHTML = '<option value="">Selecione primeiro a linha...</option>';
+        calcularQuantidadeTotal();
         return;
     }
-
-    db.ref('usuarios').once('value', (snapshot) => {
-        const listaUsuarios = snapshot.val();
-        let usuarioEncontrado = null;
-
-        if (listaUsuarios) {
-            usuarioEncontrado = Object.values(listaUsuarios).find(user => 
-                user.re === valor || (user.email && user.email.toUpperCase() === valor)
-            );
-        }
-
-        if (usuarioEncontrado) {
-            const estaAprovado = (usuarioEncontrado.aprovado || usuarioEncontrado.status === 'aprovado');
-            const estaRecusado = (usuarioEncontrado.status === 'recusado');
-
-            if (feedbackLogin) {
-                if (estaRecusado) {
-                    feedbackLogin.innerText = "Cadastro reprovado/recusado.";
-                    feedbackLogin.className = "text-[11px] font-bold text-red-600 mt-1 pl-1";
-                } else if (estaAprovado) {
-                    feedbackLogin.innerText = "Usuário ativo!";
-                    feedbackLogin.className = "text-[11px] font-bold text-green-600 mt-1 pl-1";
-                } else {
-                    feedbackLogin.innerText = "Cadastro pendente de aprovação.";
-                    feedbackLogin.className = "text-[11px] font-bold text-amber-500 mt-1 pl-1";
-                }
-            }
-            
-            let nomeParaExibir = "Colaborador";
-            if (usuarioEncontrado.apelido && usuarioEncontrado.apelido.trim() !== "") {
-                nomeParaExibir = usuarioEncontrado.apelido;
-            } else if (usuarioEncontrado.nome) {
-                nomeParaExibir = usuarioEncontrado.nome.trim().split(" ")[0]; 
-            }
-
-            if (nomeReconhecimento) nomeReconhecimento.innerText = nomeParaExibir;
-            if (nivelReconhecimento) nivelReconhecimento.innerText = usuarioEncontrado.nivel || "Operador";
-            if (fotoReconhecimento) fotoReconhecimento.src = usuarioEncontrado.foto || 'https://www.w3schools.com/howto/img_avatar.png';
-            
-            boxReconhecimento.classList.remove('hidden');
-        } else {
-            if (feedbackLogin) {
-                feedbackLogin.innerText = "Colaborador não localizado.";
-                feedbackLogin.className = "text-[11px] font-bold text-red-500 mt-1 pl-1";
-            }
-            boxReconhecimento.classList.add('hidden');
-        }
+    
+    BANCO_PRODUTOS[linhaSelecionada].forEach(prod => {
+        const option = document.createElement('option');
+        option.value = prod.nome;
+        option.setAttribute('data-codigo', prod.codigo);
+        option.setAttribute('data-cestos', prod.cestosPorDolly);
+        option.setAttribute('data-produtos', prod.produtosPorCesto);
+        option.innerText = `[Cód: ${prod.codigo}] ${prod.nome}`;
+        selectProduto.appendChild(option);
     });
+    
+    calcularQuantidadeTotal();
 }
 
-if (inputIdentificador) {
-    inputIdentificador.addEventListener('input', verificarUsuario);
+window.calcularQuantidadeTotal = function() {
+    const selectProduto = document.getElementById('prod-nome');
+    const optionSelecionada = selectProduto.options[selectProduto.selectedIndex];
+    
+    const dollys = parseInt(document.getElementById('prod-dollys').value) || 0;
+    const cestosAvulsos = parseInt(document.getElementById('prod-cestos').value) || 0;
+    
+    if (!optionSelecionada || !optionSelecionada.value) {
+        document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
+        return;
+    }
+    
+    const cestosPorDolly = parseInt(optionSelecionada.getAttribute('data-cestos'));
+    const produtosPorCesto = parseInt(optionSelecionada.getAttribute('data-produtos'));
+    
+    const totalCestos = (dollys * cestosPorDolly) + cestosAvulsos;
+    const totalProdutos = totalCestos * produtosPorCesto;
+    
+    document.getElementById('prod-qtd-total-display').innerText = `${totalProdutos} produtos (${totalCestos} cx total)`;
 }
 
-// ==========================================
-// 3. EXECUÇÃO DE LOGIN VIA NUVEM
-// ==========================================
-const loginForm = document.getElementById('login-form');
-if (loginForm) {
-    loginForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const identificador = inputIdentificador.value.trim().toUpperCase();
-        const senhaDigitada = document.getElementById('login-senha').value.replace(/\s+/g, ''); 
-
-        db.ref('usuarios').once('value', (snapshot) => {
-            const listaUsuarios = snapshot.val();
-            let usuarioValido = null;
-
-            if (listaUsuarios) {
-                usuarioValido = Object.values(listaUsuarios).find(user => 
-                    (user.re === identificador || (user.email && user.email.toUpperCase() === identificador)) && user.senha === senhaDigitada
-                );
-            }
-
-            if (usuarioValido) {
-                if (usuarioValido.status === 'recusado') {
-                    alert(`❌ Seu cadastro foi REPROVADO pelo seguinte motivo:\n\n"${usuarioValido.motivoRecusa || 'Dados inconsistentes'}"\n\nPor favor, realize um novo cadastro corrigindo estas informações.`);
-                    return;
-                }
-
-                if (!usuarioValido.aprovado && usuarioValido.status !== 'aprovado') {
-                    alert('⏳ Seu cadastro ainda não foi liberado por um superior. Por favor, aguarde a análise.');
-                    return;
-                }
-
-                sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioValido));
-                window.location.href = 'dashboard.html'; 
-            } else {
-                alert('Usuário ou senha incorreta! Certifique-se dos dados informados.');
-            }
-        });
-    });
+window.toggleLote = function(checkbox) {
+    const sup = document.getElementById('prod-lote-sup');
+    const inf = document.getElementById('prod-lote-inf');
+    if (checkbox.checked) {
+        sup.value = "SEM LOTE";
+        inf.value = "APARAS / REFUGO";
+        sup.disabled = true;
+        inf.disabled = true;
+    } else {
+        sup.value = "";
+        inf.value = "";
+        sup.disabled = false;
+        inf.disabled = false;
+    }
 }
 
 // ==========================================
-// 4. CADASTRO DE NOVOS COLABORADORES (PUSH)
-// ==========================================
-const cadastroForm = document.getElementById('cadastro-form');
-if (cadastroForm) {
-    cadastroForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const nome = document.getElementById('cad-nome').value;
-        const apelido = document.getElementById('cad-apelido').value.trim();
-        const re = document.getElementById('cad-re').value.trim().toUpperCase();
-        const email = document.getElementById('cad-email').value.trim().toLowerCase();
-        const setor = document.getElementById('cad-setor').value;
-        const turno = document.getElementById('cad-turno').value;
-        const nivel = document.getElementById('cad-nivel').value;
-        
-        const senha = document.getElementById('cad-senha').value.replace(/\s+/g, '');
-        const senhaConfirma = document.getElementById('cad-senha-confirma').value.replace(/\s+/g, '');
-        const fotoInput = document.getElementById('cad-foto');
-
-        if (senha !== senhaConfirma) {
-            alert("Erro: A senha e a confirmação de senha não são iguais!");
-            return;
-        }
-
-        const temMaiuscula = /[A-Z]/.test(senha);
-        const temMinuscula = /[a-z]/.test(senha);
-        const temNumero = /[0-9]/.test(senha);
-        const temEspecial = /[^A-Za-z0-9]/.test(senha);
-
-        if (senha.length < 8 || !temMaiuscula || !temMinuscula || !temNumero || !temEspecial) {
-            alert("Sua senha não atende aos requisitos!\n\nMínimo 8 dígitos, 1 Letra Maiúscula, 1 Minúscula, 1 Número e 1 Caractere Especial.");
-            return;
-        }
-
-        db.ref('usuarios').once('value', (snapshot) => {
-            const listaUsuarios = snapshot.val() || {};
-            
-            const jaExiste = Object.values(listaUsuarios).some(user => user.email === email || user.re === re);
-            if (jaExiste) {
-                alert('Este ID ou E-mail já constam registrados no sistema central!');
-                return;
-            }
-
-            let fotoBase64 = "";
-            const previewImg = document.getElementById('foto-preview');
-            if (fotoInput && fotoInput.files && fotoInput.files.length > 0 && previewImg) {
-                fotoBase64 = previewImg.src;
-            }
-
-            const novoUsuario = { 
-                nome, 
-                apelido, 
-                re, 
-                email, 
-                setor, 
-                turno, 
-                nivel, 
-                senha, 
-                foto: fotoBase64, 
-                aprovado: false,
-                status: "pendente"
-            };
-
-            db.ref('usuarios/' + re).set(novoUsuario)
-            .then(() => {
-                alert('Solicitação enviada para a nuvem! Aguarde a liberação do seu Supervisor, Qualidade ou ADM.');
-                cadastroForm.reset();
-                const previewCont = document.getElementById('preview-container');
-                if (previewCont) previewCont.classList.add('hidden');
-                alternarTelas(); 
-            })
-            .catch(err => {
-                console.error("Erro ao registrar usuário:", err);
-                alert("Falha de conexão ao enviar o cadastro.");
-            });
-        });
-    });
-}
-
-// Tratamento e Compressão de Foto de Perfil
-const cadFotoBtn = document.getElementById('cad-foto');
-if (cadFotoBtn) {
-    cadFotoBtn.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    const MAX_LARGURA = 200;
-                    const MAX_ALTURA = 200;
-                    let largura = img.width;
-                    let altura = img.height;
-
-                    if (largura > altura) {
-                        if (largura > MAX_LARGURA) {
-                            altura *= MAX_LARGURA / largura;
-                            largura = MAX_LARGURA;
-                        }
-                    } else {
-                        if (altura > MAX_ALTURA) {
-                            largura *= MAX_ALTURA / altura;
-                            altura = MAX_ALTURA;
-                        }
-                    }
-
-                    canvas.width = largura;
-                    canvas.height = altura;
-                    ctx.fillStyle = "#FFFFFF";
-                    ctx.fillRect(0, 0, largura, altura);
-                    ctx.drawImage(img, 0, 0, largura, altura);
-
-                    const fotoProcessadaBase64 = canvas.toDataURL('image/jpeg', 0.75);
-
-                    const previewImg = document.getElementById('foto-preview');
-                    const previewCont = document.getElementById('preview-container');
-                    
-                    if (previewImg) previewImg.src = fotoProcessadaBase64;
-                    if (previewCont) previewCont.classList.remove('hidden');
-                };
-                
-                img.onerror = function() {
-                    alert("Erro ao processar o formato desta imagem.");
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-}
-
-// ==========================================
-// 5. LEITURA DE LOTE (OCR COM TESSERACT E LIMPEZA)
+// 4. SCANNER OCR E CAPTURA DE FOTOS
 // ==========================================
 window.capturarFotoLote = function(input) {
     const file = input.files[0];
@@ -361,13 +195,7 @@ window.capturarFotoLote = function(input) {
             }
             ctx.putImageData(imgData, 0, 0);
 
-            const imagemProcessada = canvas.toDataURL('image/jpeg', 0.8);
-
-            // --- 🚨 LIMPEZA DE MEMÓRIA CRÍTICA ---
-            img.onload = null;
-            img.src = ""; 
-
-            Tesseract.recognize(imagemProcessada, 'por+eng', {
+            Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
             })
             .then(({ data: { text } }) => {
@@ -399,7 +227,7 @@ window.capturarFotoLote = function(input) {
                 
                 if (linhas.length >= 2) {
                     document.getElementById('prod-lote-sup').value = linhas[0];
-                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatated(linhas[1]);
+                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhas[1]);
                 } else if (linhas.length === 1) {
                     document.getElementById('prod-lote-sup').value = linhas[0];
                     document.getElementById('prod-lote-inf').value = "";
@@ -413,117 +241,89 @@ window.capturarFotoLote = function(input) {
             })
             .finally(() => {
                 labelSpan.innerText = originalText;
-                canvas.width = 0; 
-                canvas.height = 0;
             });
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
-};
+}
 
-function CalculeLoteFormatated(textoStr) {
+function CalculeLoteFormatado(textoStr) {
     return textoStr;
 }
 
-// ==========================================
-// 6. FOTO DE EVIDÊNCIA (COMPRIMIDA E SEGURA)
-// ==========================================
 window.capturarFotoEvidencia = function(input) {
     const file = input.files[0];
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const max_width = 800; 
-                const scale = max_width / img.width;
-                
-                canvas.width = max_width;
-                canvas.height = img.height * scale;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                const fotoComprimidaBase64 = canvas.toDataURL('image/jpeg', 0.6);
-                
-                document.getElementById('prod-foto-preview').src = fotoComprimidaBase64;
-                document.getElementById('prod-preview-container').classList.remove('hidden');
-                
-                img.onload = null;
-                img.src = ""; 
-                canvas.width = 0; 
-                canvas.height = 0;
-            };
-            img.src = e.target.result;
+            document.getElementById('prod-foto-preview').src = e.target.result;
+            document.getElementById('prod-preview-container').classList.remove('hidden');
         };
         reader.readAsDataURL(file);
     }
-};
-
-// ==========================================
-// 7. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
-// ==========================================
-const formSegregacao = document.getElementById('form-segregacao');
-if (formSegregacao) {
-    formSegregacao.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const linha = document.getElementById('prod-linha').value;
-        const produto = document.getElementById('prod-nome').value;
-        
-        const loteSuperior = document.getElementById('prod-lote-sup').value.trim().toUpperCase();
-        const loteInferior = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
-        const loteConsolidado = loteSuperior + " | " + loteInferior;
-
-        const dollys = document.getElementById('prod-dollys').value;
-        const cestos = document.getElementById('prod-cestos').value;
-        const qtdTexto = document.getElementById('prod-qtd-total-display').innerText;
-
-        const motivo = document.getElementById('prod-motivo').value;
-        const observacoes = document.getElementById('prod-observacoes').value.trim();
-        const fotoProduto = document.getElementById('prod-preview-container').classList.contains('hidden') ? "" : document.getElementById('prod-foto-preview').src;
-
-        const agora = new Date();
-        const dataHoraStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-
-        const novoItem = { 
-            id: Date.now(), 
-            linha,
-            produto, 
-            lote: loteConsolidado, 
-            quantidade: `${qtdTexto} (${dollys}D + ${cestos}C)`, 
-            motivo: motivo,
-            observacao: observacoes, 
-            foto: fotoProduto, 
-            dataHora: dataHoraStr, 
-            responsavel: usuarioLogado.nome, 
-            status: "Pendente" 
-        };
-
-        db.ref('segregados/' + novoItem.id).set(novoItem)
-        .then(() => {
-            alert("Registro de segregação efetuado com sucesso na nuvem!");
-            formSegregacao.reset();
-            document.getElementById('prod-lote-sup').disabled = false;
-            document.getElementById('prod-lote-inf').disabled = false;
-            document.getElementById('prod-preview-container').classList.add('hidden');
-            document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
-        })
-        .catch((error) => {
-            console.error("Erro ao salvar no Firebase:", error);
-            alert("Erro técnico ao salvar dados na nuvem.");
-        });
-    });
 }
+
+// ==========================================
+// 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
+// ==========================================
+
+document.getElementById('form-segregacao').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const linha = document.getElementById('prod-linha').value;
+    const produto = document.getElementById('prod-nome').value;
+    
+    const loteSuperior = document.getElementById('prod-lote-sup').value.trim().toUpperCase();
+    const loteInferior = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
+    const loteConsolidado = loteSuperior + " | " + loteInferior;
+
+    const dollys = document.getElementById('prod-dollys').value;
+    const cestos = document.getElementById('prod-cestos').value;
+    const qtdTexto = document.getElementById('prod-qtd-total-display').innerText;
+
+    const motivo = document.getElementById('prod-motivo').value;
+    const observacoes = document.getElementById('prod-observacoes').value.trim();
+    const fotoProduto = document.getElementById('prod-preview-container').classList.contains('hidden') ? "" : document.getElementById('prod-foto-preview').src;
+
+    const agora = new Date();
+    const dataHoraStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+    const novoItem = { 
+        id: Date.now(), 
+        linha,
+        produto, 
+        lote: loteConsolidado, 
+        quantidade: `${qtdTexto} (${dollys}D + ${cestos}C)`, 
+        motivo: motivo,
+        observacao: observacoes, 
+        foto: fotoProduto, 
+        dataHora: dataHoraStr, 
+        responsavel: usuarioLogado.nome, 
+        status: "Pendente" 
+    };
+
+    db.ref('segregados/' + novoItem.id).set(novoItem)
+    .then(() => {
+        alert("Registro de segregação efetuado com sucesso na nuvem!");
+        this.reset();
+        document.getElementById('prod-lote-sup').disabled = false;
+        document.getElementById('prod-lote-inf').disabled = false;
+        document.getElementById('prod-preview-container').classList.add('hidden');
+        document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
+    })
+    .catch((error) => {
+        console.error("Erro ao salvar no Firebase:", error);
+        alert("Erro técnico ao salvar dados na nuvem.");
+    });
+});
 
 window.julgarLote = function(id, statusFinal) {
     if (!confirm(`Confirma a ação técnica de aplicar o status [${statusFinal.toUpperCase()}] para este lote? Ele será direcionado para o histórico.`)) return;
 
     db.ref('segregados/' + id).update({ status: statusFinal })
     .then(() => {
-        alert("Status updated com sucesso na nuvem!");
+        alert("Status atualizado com sucesso na nuvem!");
     })
     .catch(error => console.error("Erro ao julgar lote:", error));
 }
@@ -539,10 +339,10 @@ window.excluirItemHistorico = function(id) {
 }
 
 // ==========================================
-// 8. FILTROS E RENDERIZAÇÃO DAS TABELAS (VISUAL)
+// 6. FILTROS E RENDERIZAÇÃO DAS TABELAS (VISUAL)
 // ==========================================
 let filtroTempoAtivo = '7dias';
-let dadosSegregadosCache = []; 
+let dadosSegregadosCache = []; // Armazena o snapshot atual na memória para uso dos filtros visuais
 
 function carregarTabelaSegregados(segregados) {
     const tabela = document.getElementById('tabela-segregados');
@@ -686,7 +486,7 @@ window.fecharZoomFoto = function() {
 }
 
 // ==========================================
-// 9. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
+// 7. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
 // ==========================================
 function atualizarTabelaUsuarios(listaUsuarios) {
     let tabela = document.getElementById('tabela-usuarios-adm');
@@ -706,6 +506,7 @@ function atualizarTabelaUsuarios(listaUsuarios) {
             contagemPendentes++;
         }
 
+        // Gera uma chave segura para o Firebase usando o ID ou RE
         let userKey = user.re || user.email.replace(/[.#$\[\]]/g, "_");
 
         let linhaHTML = `
@@ -767,7 +568,7 @@ window.excluirUsuario = function(userKey) {
 }
 
 // ==========================================
-// 10. MODAL EDITAR PERFIL
+// 8. MODAL EDITAR PERFIL
 // ==========================================
 window.abrirModalPerfil = function() {
     document.getElementById('edit-nome').value = usuarioLogado.nome || '';
@@ -786,9 +587,8 @@ window.fecharModalPerfil = function() {
     document.getElementById('modal-perfil').classList.add('hidden'); 
 }
 
-const editFoto = document.getElementById('edit-foto');
-if (editFoto) {
-    editFoto.addEventListener('change', function(e) {
+if (document.getElementById('edit-foto')) {
+    document.getElementById('edit-foto').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
@@ -830,63 +630,60 @@ if (editFoto) {
     });
 }
 
-const formEditarPerfil = document.getElementById('form-editar-perfil');
-if (formEditarPerfil) {
-    formEditarPerfil.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const novoNome = document.getElementById('edit-nome').value.trim();
-        const novoApelido = document.getElementById('edit-apelido').value.trim();
-        const novoSetor = document.getElementById('edit-setor').value;
-        const novoTurno = document.getElementById('edit-turno').value;
-        const senhaNova = document.getElementById('edit-senha-nova').value.replace(/\s+/g, '');
-        const senhaConfirma = document.getElementById('edit-senha-confirma').value.replace(/\s+/g, '');
-        const fotoNova = document.getElementById('edit-perfil-preview').src;
+document.getElementById('form-editar-perfil').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const novoNome = document.getElementById('edit-nome').value.trim();
+    const novoApelido = document.getElementById('edit-apelido').value.trim();
+    const novoSetor = document.getElementById('edit-setor').value;
+    const novoTurno = document.getElementById('edit-turno').value;
+    const senhaNova = document.getElementById('edit-senha-nova').value.replace(/\s+/g, '');
+    const senhaConfirma = document.getElementById('edit-senha-confirma').value.replace(/\s+/g, '');
+    const fotoNova = document.getElementById('edit-perfil-preview').src;
 
-        let senhaDestino = usuarioLogado.senha;
+    let senhaDestino = usuarioLogado.senha;
 
-        if (senhaNova.length > 0) {
-            if (senhaNova !== senhaConfirma) {
-                alert("Erro: A nova senha e a confirmação não batem!");
-                return;
-            }
-            const temMaiuscula = /[A-Z]/.test(senhaNova);
-            const temMinuscula = /[a-z]/.test(senhaNova);
-            const temNumero = /[0-9]/.test(senhaNova);
-            const temEspecial = /[^A-Za-z0-9]/.test(senhaNova);
-
-            if (senhaNova.length < 8 || !temMaiuscula || !temMinuscula || !temNumero || !temEspecial) {
-                alert("Sua nova senha não atende aos requisitos mínimos!");
-                return;
-            }
-            senhaDestino = senhaNova;
-            alert("Sua senha foi atualizada com sucesso!");
+    if (senhaNova.length > 0) {
+        if (senhaNova !== senhaConfirma) {
+            alert("Erro: A nova senha e a confirmação não batem!");
+            return;
         }
+        const temMaiuscula = /[A-Z]/.test(senhaNova);
+        const temMinuscula = /[a-z]/.test(senhaNova);
+        const temNumero = /[0-9]/.test(senhaNova);
+        const temEspecial = /[^A-Za-z0-9]/.test(senhaNova);
 
-        const dadosAtualizados = {
-            ...usuarioLogado,
-            nome: novoNome,
-            apelido: novoApelido,
-            setor: novoSetor,
-            turno: novoTurno,
-            senha: senhaDestino,
-            foto: fotoNova
-        };
+        if (senhaNova.length < 8 || !temMaiuscula || !temMinuscula || !temNumero || !temEspecial) {
+            alert("Sua nova senha não atende aos requisitos mínimos!");
+            return;
+        }
+        senhaDestino = senhaNova;
+        alert("Sua senha foi atualizada com sucesso!");
+    }
 
-        let userKey = usuarioLogado.re || usuarioLogado.email.replace(/[.#$\[\]]/g, "_");
+    const dadosAtualizados = {
+        ...usuarioLogado,
+        nome: novoNome,
+        apelido: novoApelido,
+        setor: novoSetor,
+        turno: novoTurno,
+        senha: senhaDestino,
+        foto: fotoNova
+    };
 
-        db.ref('usuarios/' + userKey).update(dadosAtualizados)
-        .then(() => {
-            sessionStorage.setItem('usuarioLogado', JSON.stringify(dadosAtualizados));
-            alert("Perfil profissional updated na nuvem!");
-            location.reload();
-        })
-        .catch(err => {
-            console.error("Erro ao atualizar perfil:", err);
-            alert("Erro técnico ao salvar alterações.");
-        });
+    let userKey = usuarioLogado.re || usuarioLogado.email.replace(/[.#$\[\]]/g, "_");
+
+    db.ref('usuarios/' + userKey).update(dadosAtualizados)
+    .then(() => {
+        sessionStorage.setItem('usuarioLogado', JSON.stringify(dadosAtualizados));
+        alert("Perfil profissional atualizado na nuvem!");
+        location.reload();
+    })
+    .catch(err => {
+        console.error("Erro ao atualizar perfil:", err);
+        alert("Erro técnico ao salvar alterações.");
     });
-}
+});
 
 window.excluirMinhaConta = function() {
     if(!confirm("Você excluirá sua conta do sistema de forma permanente. Prosseguir?")) return;
@@ -894,13 +691,15 @@ window.excluirMinhaConta = function() {
     
     db.ref('usuarios/' + userKey).remove()
     .then(() => {
-        window.location.href = 'index.html';
+        logout();
     });
 }
 
 // ==========================================
-// 11. ESCUTA ATIVA EM TEMPO REAL (FIREBASE -> UI)
+// 9. ESCUTA ATIVA EM TEMPO REAL (FIREBASE -> UI)
 // ==========================================
+
+// Escuta em tempo real para os Produtos Segregados
 db.ref('segregados').on('value', (snapshot) => {
     const dados = snapshot.val();
     dadosSegregadosCache = [];
@@ -915,6 +714,7 @@ db.ref('segregados').on('value', (snapshot) => {
     carregarTabelaArquivo(dadosSegregadosCache);
 });
 
+// Escuta em tempo real para a Tabela de Controle de Usuários (Apenas se o cargo permitir ver o elemento na tela)
 if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) {
     db.ref('usuarios').on('value', (snapshot) => {
         const dados = snapshot.val();
