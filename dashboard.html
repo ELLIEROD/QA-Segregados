@@ -299,13 +299,12 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
     <script src="js/config.js"></script>
-
     <script src="js/dashboard.js"></script>
 
     <script>
@@ -322,23 +321,29 @@
             }
         }
 
-        // Registro correto e seguro do Service Worker para o PWA
+        // REGISTRO ÚNICO E SEGURO DO SERVICE WORKER
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(() => console.log('PWA: Service Worker Ativo com sucesso!'))
+                    .then(reg => {
+                        console.log('PWA: Service Worker Ativo com sucesso!');
+                        
+                        // SE VOCÊ MUDAR O JS, ESSE TRECHO SE ENCARREGA DE ATUALIZAR O CELULAR NA HORA:
+                        reg.onupdatefound = () => {
+                            const installingWorker = reg.installing;
+                            if (installingWorker) {
+                                installingWorker.onstatechange = () => {
+                                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log('Nova versão do código detectada! Atualizando...');
+                                        window.location.reload();
+                                    }
+                                };
+                            }
+                        };
+                    })
                     .catch(err => console.error('Erro ao registrar Service Worker:', err));
             });
         }
     </script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('PWA: Service Worker Registrado com Sucesso!'))
-      .catch(err => console.error('Erro ao registrar PWA:', err));
-  }
-</script>
-
 </body>
 </html>
