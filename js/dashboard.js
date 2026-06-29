@@ -34,9 +34,14 @@ if (usuarioLogado.nivel === "Qualidade") {
 // Banco de Dados de Produtos organizados por Linha e Regras de Embalagem
 const BANCO_PRODUTOS = {
     "Bolleria": [
-        { codigo: "101", nome: "Ana Maria Chocolate", cestosPorDolly: 32, produtosPorCesto: 12 },
-        { codigo: "102", nome: "Ana Maria Baunilha", cestosPorDolly: 32, produtosPorCesto: 12 },
-        { codigo: "103", nome: "Mini Bolo Gotas", cestosPorDolly: 24, produtosPorCesto: 15 }
+        { codigo: "502642", nome: "Gran Gurguer Gergelim 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "500226", nome: "Gran Burguer Gergelim 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "502644", nome: "Pão Brioche 520g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }
+        { codigo: "502874", nome: "Pão Brioche 520g PVT", cestosPorDolly: 38, produtosPorCesto: 10 }
+        { codigo: "505878", nome: "Pão Hamburguer Artesano 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }
+        { codigo: "505879", nome: "Pão Hamburguer Artesano 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 }
+        { codigo: "505880", nome: "Pão Hamb. Artesano Australiano 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }
+        { codigo: "505881", nome: "Pão Hamb. Artesano Australiano 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 }
     ],
     "Linha 3": [
         { codigo: "201", nome: "Pão de Forma Tradicional", cestosPorDolly: 28, produtosPorCesto: 10 },
