@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Qualidade - Fábrica</title>
+    <title>Controle de Qualidade</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     
@@ -101,7 +101,7 @@
                                 <input type="number" id="prod-dollys" value="0" min="0" oninput="calcularQuantidadeTotal()" class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Cestos Avulsos</label>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Cestos</label>
                                 <input type="number" id="prod-cestos" value="0" min="0" oninput="calcularQuantidadeTotal()" class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600">
                             </div>
                         </div>
@@ -117,7 +117,7 @@
                             <option value="Falha na Embalagem / Selagem">Falha na Embalagem / Selagem</option>
                             <option value="Desvio de Peso">Desvio de Peso</option>
                             <option value="Problema no Forno">Problema no Forno</option>
-                            <option value="Material Destinado a Aparas">Material Destinado a Aparas</option>
+                            <option value="Material Destinado a Aparas">Aparas</option>
                             <option value="Outros">Outros</option>                      
                         </select>
                     </div>
@@ -166,7 +166,7 @@
                     <thead>
                         <tr class="bg-slate-100 font-bold text-[11px] text-slate-600 border-b uppercase">
                             <th class="p-3">Colaborador</th>
-                            <th class="p-3">RE / E-mail</th>
+                            <th class="p-3">ID / E-mail</th>
                             <th class="p-3">Setor/Turno</th>
                             <th class="p-3">Cargo Pretendido</th>
                             <th class="p-3">Status</th>
@@ -211,7 +211,7 @@
 
     <div id="modal-perfil" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
         <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-700 max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-slate-800 text-lg mb-2">Meu Perfil Profissional</h3>
+            <h3 class="font-bold text-slate-800 text-lg mb-2">Meu Perfil</h3>
             <p class="text-xs text-slate-400 mb-4">Mantenha seus dados e sua senha atualizados para segurança.</p>
             
             <form id="form-editar-perfil" class="space-y-3">
