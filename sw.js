@@ -4,9 +4,9 @@ const ASSETS = [
   '/index.html',
   '/dashboard.html',
   '/manifest.json',
-  '/favicon.ico',     // Adicionado
-  '/icon-192.png',    // Adicionado
-  '/icon-512.png',    // Adicionado
+  '/favicon.ico',     
+  '/img/icon-192.png',    
+  '/img/icon-512.png',    
   '/js/config.js',
   '/js/auth.js',
   '/js/dashboard.js'
