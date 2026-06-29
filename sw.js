@@ -1,51 +1,53 @@
-const CACHE_NAME = 'qa-v6'; // Subi para v6 para forçar a atualização limpa!
+const CACHE_NAME = 'qa-v10'; // Subimos bem a versão para forçar o reset total
+const NOM_REPOSITORIO = '/QA-Segregados'; // Caminho do seu projeto no GitHub
+
 const ASSETS = [
-  './',
-  './index.html',
-  './dashboard.html',
-  './manifest.json',
-  './favicon.ico',      
-  './img/icon-192.png',    // Ajustado com o caminho da pasta img
-  './img/icon-512.png',    // Ajustado com o caminho da pasta img
-  './js/config.js',
-  './js/auth.js',
-  './js/dashboard.js'
+  `${NOM_REPOSITORIO}/`,
+  `${NOM_REPOSITORIO}/index.html`,
+  `${NOM_REPOSITORIO}/dashboard.html`,
+  `${NOM_REPOSITORIO}/manifest.json`,
+  `${NOM_REPOSITORIO}/favicon.ico`,      
+  `${NOM_REPOSITORIO}/img/icon-192.png`,  
+  `${NOM_REPOSITORIO}/img/icon-512.png`,  
+  `${NOM_REPOSITORIO}/js/config.js`,
+  `${NOM_REPOSITORIO}/js/auth.js`,
+  `${NOM_REPOSITORIO}/js/dashboard.js`
 ];
 
-// Instalação do Service Worker e Cache dos arquivos essenciais
+// Instalação do Service Worker com tratamento de erro individual por arquivo
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      // O truque do map evita que um único arquivo com erro trave o app todo enquanto testas
       return Promise.all(
         ASSETS.map(url => {
-          return cache.add(url).catch(err => console.error('Erro ao colocar no cache:', url, err));
+          return cache.add(url).catch(err => console.error('Arquivo não encontrado no GitHub:', url, err));
         })
       );
-    })
+    }).then(() => self.skipWaiting())
   );
 });
 
-// Ativação e Limpeza de caches antigos (Crucial para não travar nos 3 pontinhos!)
+// Ativação e Limpeza profunda de caches antigos
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(
         keys.map(key => {
           if (key !== CACHE_NAME) {
+            console.log('Limpando cache antigo:', key);
             return caches.delete(key);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Resposta com Cache ou Rede
+// Estratégia de resposta: Tenta Rede primeiro, se falhar ou estiver offline, usa o Cache
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(response => {
-      return response || fetch(e.request);
+    fetch(e.request).catch(() => {
+      return caches.match(e.request);
     })
   );
 });
