@@ -1,7 +1,6 @@
 {
   "short_name": "QualidadeQA",
   "name": "Controle de Qualidade e Segregação - QA",
-  "description": "Aplicativo para controle de qualidade, registro de auditorias e gerenciamento de segregação de produtos na linha de produção.",
   "icons": [
     {
       "src": "img/icon-192.png",
@@ -16,10 +15,9 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "background_color": "#1e293b",
   "theme_color": "#1d4ed8",
   "display": "standalone",
-  "display_override": ["fullscreen", "standalone", "minimal-ui"],
   "orientation": "portrait"
 }
