@@ -1,11 +1,13 @@
 {
+  "id": "com.bimbo.qualidadeqa",
   "short_name": "QualidadeQA",
   "name": "Controle de Qualidade e Segregação - QA",
+  "description": "Aplicativo para controle, monitoramento e segregação de produtos no controle de qualidade.",
   "icons": [
     {
       "src": "img/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192",
+      "sizes": "256x256",
       "purpose": "any maskable"
     },
     {
@@ -19,5 +21,14 @@
   "background_color": "#1e293b",
   "theme_color": "#1d4ed8",
   "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "screenshots": [
+    {
+      "src": "img/background-bimbo.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Tela de Login do Aplicativo"
+    }
+  ]
 }
