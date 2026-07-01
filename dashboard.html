@@ -3,18 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Qualidade</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Controle de Qualidade - Fábrica</title>
+    
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     
     <link rel="manifest" href="manifest.json">
 
     <script src="https://cdn.tailwindcss.com"></script>
-
     
-    
+    <!-- COLE ESTE BLOCO DO ESTILO AQUI -->
+    <style>
+    .bg-bimbo-wallpaper {
+        background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url("img/background-bimbo.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+    </style>
 </head>
-<body class="bg-slate-100 min-h-screen font-sans">
+<body class="bg-bimbo-wallpaper min-h-screen font-sans p-4 text-slate-900">
 
     <nav class="bg-blue-700 text-white shadow-md px-6 py-3 flex justify-between items-center border-b-4 border-red-600">
         <div class="flex items-center space-x-3">
@@ -101,7 +109,7 @@
                                 <input type="number" id="prod-dollys" value="0" min="0" oninput="calcularQuantidadeTotal()" class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Cestos</label>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Cestos Avulsos</label>
                                 <input type="number" id="prod-cestos" value="0" min="0" oninput="calcularQuantidadeTotal()" class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600">
                             </div>
                         </div>
@@ -117,7 +125,7 @@
                             <option value="Falha na Embalagem / Selagem">Falha na Embalagem / Selagem</option>
                             <option value="Desvio de Peso">Desvio de Peso</option>
                             <option value="Problema no Forno">Problema no Forno</option>
-                            <option value="Material Destinado a Aparas">Aparas</option>
+                            <option value="Material Destinado a Aparas">Material Destinado a Aparas</option>
                             <option value="Outros">Outros</option>                      
                         </select>
                     </div>
@@ -166,7 +174,7 @@
                     <thead>
                         <tr class="bg-slate-100 font-bold text-[11px] text-slate-600 border-b uppercase">
                             <th class="p-3">Colaborador</th>
-                            <th class="p-3">ID / E-mail</th>
+                            <th class="p-3">RE / E-mail</th>
                             <th class="p-3">Setor/Turno</th>
                             <th class="p-3">Cargo Pretendido</th>
                             <th class="p-3">Status</th>
@@ -211,7 +219,7 @@
 
     <div id="modal-perfil" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
         <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-700 max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-slate-800 text-lg mb-2">Meu Perfil</h3>
+            <h3 class="font-bold text-slate-800 text-lg mb-2">Meu Perfil Profissional</h3>
             <p class="text-xs text-slate-400 mb-4">Mantenha seus dados e sua senha atualizados para segurança.</p>
             
             <form id="form-editar-perfil" class="space-y-3">
@@ -299,12 +307,13 @@
         </div>
     </div>
 
-   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
     <script src="js/config.js"></script>
+
     <script src="js/dashboard.js"></script>
 
     <script>
@@ -321,29 +330,23 @@
             }
         }
 
-        // REGISTRO ÚNICO E SEGURO DO SERVICE WORKER
+        // Registro correto e seguro do Service Worker para o PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => {
-                        console.log('PWA: Service Worker Ativo com sucesso!');
-                        
-                        // SE VOCÊ MUDAR O JS, ESSE TRECHO SE ENCARREGA DE ATUALIZAR O CELULAR NA HORA:
-                        reg.onupdatefound = () => {
-                            const installingWorker = reg.installing;
-                            if (installingWorker) {
-                                installingWorker.onstatechange = () => {
-                                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        console.log('Nova versão do código detectada! Atualizando...');
-                                        window.location.reload();
-                                    }
-                                };
-                            }
-                        };
-                    })
+                    .then(() => console.log('PWA: Service Worker Ativo com sucesso!'))
                     .catch(err => console.error('Erro ao registrar Service Worker:', err));
             });
         }
     </script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('PWA: Service Worker Registrado com Sucesso!'))
+      .catch(err => console.error('Erro ao registrar PWA:', err));
+  }
+</script>
+
 </body>
 </html>
