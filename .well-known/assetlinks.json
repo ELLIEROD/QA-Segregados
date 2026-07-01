@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "io.github.ellierod.qa",
-        "sha256_cert_fingerprints": ["48:F2:F1:B5:76:DD:92:1F:B7:D0:23:11:01:11:97:82:4F:CB:FA:4E:FC:FA:52:2F:5F:F9:76:05:C3:3C:CB:62"]
+        "package_name": "om.bimbo.qualidadeqa",
+        "sha256_cert_fingerprints": ["C9:FB:B0:96:37:DD:33:D5:96:31:75:DF:3D:4F:03:10:6C:AD:B2:AD:F9:AC:68:2D:15:82:66:A3:F4:F6:72:DD"]
       }
     }]
