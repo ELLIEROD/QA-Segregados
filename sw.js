@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v3'; // Nova versão do cache
+const CACHE_NAME = 'qa-v4'; // Nova versão do cache
 
 const ASSETS = [
   '/',
