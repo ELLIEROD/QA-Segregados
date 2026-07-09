@@ -519,9 +519,9 @@ function carregarTabelaSegregados(segregados) {
             badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-orange-100 text-orange-800">APARAS</span>`;
         }
 
-        // PASSO 7: Botão de impressão posicionado corretamente nos Itens Retidos (Ativos)
+        // PASSO 7: Gerenciador de Impressão (Chama a função centralizada de escolha)
         const botaoQRCode = `
-            <button onclick="gerarEtiquetaProduto(${item.id})" class="mt-2 w-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold py-1 px-1.5 rounded flex items-center justify-center gap-1 transition shadow-sm">
+            <button onclick="gerenciarEscolhaImpressao(${item.id})" class="mt-2 w-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold py-1 px-1.5 rounded flex items-center justify-center gap-1 transition shadow-sm">
                 🖨️ Imprimir Etiqueta QR
             </button>
         `;
@@ -610,8 +610,20 @@ function carregarTabelaArquivo(segregados) {
 }
 
 // ==========================================
-// 7. IMPRESSÃO DA ETIQUETA TERMICA E QR CODE
+// 7. IMPRESSÃO DA ETIQUETA TÉRMICA E QR CODE
 // ==========================================
+
+// Função Intermediária para o usuário escolher o método de impressão de forma simples
+window.gerenciarEscolhaImpressao = function(id) {
+    const escolha = confirm("Deseja imprimir direto na impressora ZEBRA via rede?\n\n[OK] para Zebra (Rede)\n[Cancelar] para Impressão Padrão (Navegador)");
+    if (escolha) {
+        window.imprimirZebraRede(id);
+    } else {
+        window.gerarEtiquetaProduto(id);
+    }
+};
+
+// OPÇÃO 1: IMPRESSÃO COMUM (Abre janela popup visual do navegador)
 window.gerarEtiquetaProduto = function(id) {
     db.ref('segregados/' + id).once('value').then((snapshot) => {
         const item = snapshot.val();
@@ -621,7 +633,7 @@ window.gerarEtiquetaProduto = function(id) {
         }
 
         const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
-       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlConsulta)}`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlConsulta)}`;
         const janelaImpressao = window.open('', '_blank', 'width=400,height=600');
         
         janelaImpressao.document.write(`
@@ -664,7 +676,7 @@ window.gerarEtiquetaProduto = function(id) {
                 </div>
 
                 <div class="qrcode-container">
-                    <img src="${qrCodeUrl}" alt="QR Code Rastreabilidade">
+                    <img src="${qrCodeUrl}" alt="QR Code Rastreabilidade" onload="verificarCarregamento()">
                     <div style="font-size: 9px; margin-top: 3px; font-weight: bold;">ESCANEE PARA RASTREABILIDADE</div>
                 </div>
 
@@ -673,10 +685,10 @@ window.gerarEtiquetaProduto = function(id) {
                 </div>
 
                 <script>
-                    window.onload = function() {
+                    function verificarCarregamento() {
                         window.print();
                         setTimeout(function() { window.close(); }, 500);
-                    };
+                    }
                 <\/script>
             </body>
             </html>
@@ -685,6 +697,69 @@ window.gerarEtiquetaProduto = function(id) {
     }).catch(err => {
         console.error("Erro ao processar etiqueta:", err);
         alert("Erro ao buscar dados para impressão.");
+    });
+};
+
+// OPÇÃO 2: ENVIAR PARA ZEBRA (Comando direto via IP da Rede)
+window.imprimirZebraRede = function(id) {
+    const ipImpressora = prompt("Digite o endereço IP da impressora Zebra na rede:", "192.168.1.150");
+    if (!ipImpressora) return;
+
+    db.ref('segregados/' + id).once('value').then((snapshot) => {
+        const item = snapshot.val();
+        if (!item) {
+            alert("Erro: Produto não localizado na base.");
+            return;
+        }
+
+        const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
+
+        // Correção do comando nativo ^BQ adicionando o parâmetro de correção 'QA,' antes da URL
+        const comandoZPL = `
+^XA
+^CI28
+^FX --- Faixa Superior de Alerta ---
+^FO20,30^GB560,50,50^FS
+^FO150,40^A0N,35,35^FR^FDPRODUTO RETIDO^FS
+
+^FX --- Informações do Produto ---
+^FO20,110^A0N,26,26^FDPRODUTO: ${item.produto.toUpperCase()}^FS
+^FO20,150^A0N,26,26^FDLOTE:    ${item.lote}^FS
+^FO20,190^A0N,26,26^FDQTD:     ${item.quantidade}^FS
+^FO20,230^A0N,26,26^FDDATA:    ${item.dataHora}^FS
+^FO20,270^A0N,26,26^FDSTATUS:  ${item.status.toUpperCase()}^FS
+^FO20,310^A0N,26,26^FDRESP:    ${item.responsavel.toUpperCase()}^FS
+
+^FX --- Linha Divisória ---
+^FO20,360^GB560,3,3^FS
+
+^FX --- Configuração Nativa do QR Code ---
+^FO200,400^BQN,2,6^FDQA,${urlConsulta}^FS
+^FO110,580^A0N,20,20^FDESCANEE PARA RASTREABILIDADE^FS
+
+^FX --- Rodapé ---
+^FO20,630^GB560,2,2^FS
+^FO200,645^A0N,18,18^FDID Interno: #RL-${item.id}^FS
+^XZ
+        `;
+
+        // Disparo direto via rede (Porta padrão 9100)
+        fetch(`http://${ipImpressora}:9100`, {
+            method: 'POST',
+            body: comandoZPL,
+            mode: 'no-cors'
+        })
+        .then(() => {
+            alert("Comando enviado com sucesso para a impressora Zebra!");
+        })
+        .catch((err) => {
+            console.error("Erro ao conectar na Zebra:", err);
+            alert("Não foi possível alcançar a impressora Zebra. Verifique o IP digitado e a sua conexão de rede.");
+        });
+
+    }).catch(err => {
+        console.error("Erro ao buscar dados para Zebra:", err);
+        alert("Erro ao processar dados da etiqueta.");
     });
 };
 
