@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Qualidade - Fábrica</title>
     
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    
+    <link class="favicon" rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="manifest" href="manifest.json">
 
     <script src="https://cdn.tailwindcss.com"></script>
     
-<style>
+    <style>
     .bg-bimbo-wallpaper {
         background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url("img/background-bimbo.png");
         background-size: cover;
@@ -33,7 +32,7 @@
                 <p id="dash-user-nome" class="text-sm font-bold leading-tight">...</p>
                 <p id="dash-user-perfil" class="text-[11px] bg-red-600 text-white px-2 py-0.5 rounded-full inline-block font-semibold uppercase mt-0.5">...</p>
             </div>
-            <img id="dash-user-foto" src="" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow cursor-pointer" onclick="abrirModalPerfil()">
+            <img id="dash-user-foto" src="" alt="Foto do Usuário" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow cursor-pointer" onclick="abrirModalPerfil()">
             <button onclick="logout()" class="text-xs bg-slate-900/40 hover:bg-slate-950 px-2 py-1 rounded font-bold transition">Sair</button>
         </div>
     </nav>
@@ -53,7 +52,7 @@
                 
                 <form id="form-segregacao" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Linha de Produção</label>
+                        <label for="prod-linha" class="block text-xs font-bold text-slate-600 uppercase mb-1">Linha de Produção</label>
                         <select id="prod-linha" required onchange="atualizarListaProdutos()" class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-600 outline-none">
                             <option value="">-- Selecione a Linha --</option>
                             <option value="Bolleria">Linha Bolleria</option>
@@ -62,19 +61,19 @@
                         </select>
                     </div>
 
-<div>
-    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Turno de Produção</label>
-    <select id="reg-turno-producao" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-600 outline-none">
-        <option value="">-- Selecione o Turno --</option>
-        <option value="1">1º Turno</option>
-        <option value="2">2º Turno</option>
-        <option value="3">3º Turno</option>
-        <option value="4">4º Turno</option>
-    </select>
-</div>
+                    <div>
+                        <label for="reg-turno-producao" class="block text-xs font-bold text-slate-600 uppercase mb-1">Turno de Produção</label>
+                        <select id="reg-turno-producao" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-600 outline-none">
+                            <option value="">-- Selecione o Turno --</option>
+                            <option value="1">1º Turno</option>
+                            <option value="2">2º Turno</option>
+                            <option value="3">3º Turno</option>
+                            <option value="4">4º Turno</option>
+                        </select>
+                    </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Produto / Código</label>
+                        <label for="prod-nome" class="block text-xs font-bold text-slate-600 uppercase mb-1">Produto / Código</label>
                         <select id="prod-nome" required onchange="calcularQuantidadeTotal()" class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-600 outline-none">
                             <option value="">Selecione a linha...</option>
                         </select>
@@ -85,7 +84,7 @@
                             <label class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1">
                                 📦 Identificação do Lote
                             </label>
-                            <label class="text-[10px] text-red-600 font-bold flex items-center cursor-pointer">
+                            <label for="sem-lote" class="text-[10px] text-red-600 font-bold flex items-center cursor-pointer">
                                 <input type="checkbox" id="sem-lote" class="mr-1" onchange="toggleLote(this)"> Sem Lote
                             </label>
                         </div>
@@ -101,25 +100,25 @@
 
                         <div class="space-y-2 pt-1 border-t border-slate-200/60">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Superior (Validade / Retirada)</label>
+                                <label for="prod-lote-sup" class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Superior (Validade / Retirada)</label>
                                 <input type="text" id="prod-lote-sup" placeholder="Ex: VAL 15/07 RET 02" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Inferior (Lote / Envio)</label>
+                                <label for="prod-lote-inf" class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Inferior (Lote / Envio)</label>
                                 <input type="text" id="prod-lote-inf" placeholder="Ex: L234A ENV 22:30" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
                             </div>
                         </div>
                     </div>
 
                     <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100 space-y-2">
-                        <label class="block text-xs font-bold text-blue-900 uppercase tracking-wide">🔢Quantidade</label>
+                        <label class="block text-xs font-bold text-blue-900 uppercase tracking-wide">🔢 Quantidade</label>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Dollys</label>
+                                <label for="prod-dollys" class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Dollys</label>
                                 <input type="number" id="prod-dollys" value="0" min="0" oninput="calcularQuantidadeTotal()" class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Cestos Avulsos</label>
+                                <label for="prod-cestos" class="block text-[10px] font-bold text-slate-600 uppercase">Qtd. Cestos Avulsos</label>
                                 <input type="number" id="prod-cestos" value="0" min="0" oninput="calcularQuantidadeTotal()" class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600">
                             </div>
                         </div>
@@ -130,7 +129,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Motivo da Segregação</label>
+                        <label for="prod-motivo" class="block text-xs font-bold text-slate-600 uppercase mb-1">Motivo da Segregação</label>
                         <select id="prod-motivo" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-600 outline-none">
                             <option value="Falha na Embalagem / Selagem">Falha na Embalagem / Selagem</option>
                             <option value="Desvio de Peso">Desvio de Peso</option>
@@ -141,16 +140,16 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Observações</label>
+                        <label for="prod-observacoes" class="block text-xs font-bold text-slate-600 uppercase mb-1">Observações</label>
                         <textarea id="prod-observacoes" rows="2" placeholder="Detalhes adicionais sobre o desvio encontrado..." class="w-full px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-600 placeholder:text-slate-300"></textarea>
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-lg border border-dashed border-slate-300">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">🖼️ Evidência/ Foto</label>
+                        <label for="prod-foto" class="block text-xs font-bold text-slate-700 uppercase mb-1">🖼️ Evidência / Foto</label>
                         <input type="file" id="prod-foto" accept="image/*" capture="environment" class="w-full text-xs text-slate-500" onchange="capturarFotoEvidencia(this)">
                         
                         <div id="prod-preview-container" class="mt-2 hidden">
-                            <img id="prod-foto-preview" src="" class="w-full h-32 object-cover rounded border">
+                            <img id="prod-foto-preview" src="" alt="Prévia da evidência" class="w-full h-32 object-cover rounded border">
                         </div>
                     </div>
 
@@ -168,7 +167,7 @@
                                 <th class="p-3">Produto/Lote</th>
                                 <th class="p-3">Motivo/Anotações</th>
                                 <th class="p-3">Status</th>
-                                <th class="p-3 text-center">Ações QA</th>
+                                <th class="p-3 text-center">Ações QA / QR Code</th>
                             </tr>
                         </thead>
                         <tbody id="tabela-segregados" class="divide-y divide-slate-100"></tbody>
@@ -227,6 +226,7 @@
 
     </main>
 
+    <!-- MODAL PERFIL -->
     <div id="modal-perfil" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
         <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-700 max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-slate-800 text-lg mb-2">Meu Perfil Profissional</h3>
@@ -234,7 +234,7 @@
             
             <form id="form-editar-perfil" class="space-y-3">
                 <div class="flex flex-col items-center bg-slate-50 p-3 rounded-xl border border-slate-200 mb-2">
-                    <img id="edit-perfil-preview" src="https://www.w3schools.com/howto/img_avatar.png" class="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-sm mb-1">
+                    <img id="edit-perfil-preview" src="https://www.w3schools.com/howto/img_avatar.png" alt="Prévia do perfil" class="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-sm mb-1">
                     <label class="block text-[10px] font-bold text-blue-700 uppercase cursor-pointer hover:underline">
                         Alterar Foto
                         <input type="file" id="edit-foto" accept="image/*" class="hidden">
@@ -242,23 +242,23 @@
                 </div>
 
                 <div>
-                    <label class="text-xs font-bold text-slate-500 uppercase">Nome Completo</label>
+                    <label for="edit-nome" class="text-xs font-bold text-slate-500 uppercase">Nome Completo</label>
                     <input type="text" id="edit-nome" required class="w-full px-3 py-1.5 border rounded text-sm focus:ring-1 focus:ring-blue-600 outline-none">
                 </div>
 
                 <div>
-                    <label class="text-xs font-bold text-slate-500 uppercase">Como prefere ser chamado? <span class="text-slate-400 font-normal text-[10px]">(Opcional)</span></label>
+                    <label for="edit-apelido" class="text-xs font-bold text-slate-500 uppercase">Como prefere ser chamado? <span class="text-slate-400 font-normal text-[10px]">(Opcional)</span></label>
                     <input type="text" id="edit-apelido" placeholder="Ex: Cris, Tonho" class="w-full px-3 py-1.5 border rounded text-sm focus:ring-1 focus:ring-blue-600 outline-none">
                 </div>
 
                 <div>
-                    <label class="text-xs font-bold text-slate-400 uppercase">ID / Matrícula</label>
+                    <label for="edit-re" class="text-xs font-bold text-slate-400 uppercase">ID / Matrícula</label>
                     <input type="text" id="edit-re" disabled class="w-full px-3 py-1.5 border rounded text-sm bg-slate-100 text-slate-500 font-semibold cursor-not-allowed outline-none">
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase">Setor</label>
+                        <label for="edit-setor" class="text-xs font-bold text-slate-500 uppercase">Setor</label>
                         <select id="edit-setor" class="w-full px-3 py-1.5 border rounded text-sm bg-white">
                             <option value="20K">Linha 20K</option>
                             <option value="Bolleria">Linha Bolleria</option>
@@ -269,7 +269,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase">Turno</label>
+                        <label for="edit-turno" class="text-xs font-bold text-slate-500 uppercase">Turno</label>
                         <select id="edit-turno" class="w-full px-3 py-1.5 border rounded text-sm bg-white">
                             <option value="1º Turno">1º Turno</option>
                             <option value="2º Turno">2º Turno</option>
@@ -283,7 +283,7 @@
                     <p class="text-xs font-bold text-slate-700 uppercase tracking-wider">🔒 Alterar Senha <span class="text-[9px] text-slate-400 font-normal lowercase">(deixe em branco se não quiser mudar)</span></p>
                     
                     <div>
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Nova Senha</label>
+                        <label for="edit-senha-nova" class="text-[10px] font-bold text-slate-500 uppercase">Nova Senha</label>
                         <div class="relative">
                             <input type="password" id="edit-senha-nova" placeholder="Mínimo 8 dígitos com regras" class="w-full px-3 py-1 border rounded text-xs pr-8 outline-none focus:ring-1 focus:ring-blue-600">
                             <button type="button" onclick="toggleVisibilidadeSenha('edit-senha-nova', this)" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs">👁️</button>
@@ -291,7 +291,7 @@
                     </div>
 
                     <div>
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Confirmar Nova Senha</label>
+                        <label for="edit-senha-confirma" class="text-[10px] font-bold text-slate-500 uppercase">Confirmar Nova Senha</label>
                         <div class="relative">
                             <input type="password" id="edit-senha-confirma" placeholder="Repita a nova senha" class="w-full px-3 py-1 border rounded text-xs pr-8 outline-none focus:ring-1 focus:ring-blue-600">
                             <button type="button" onclick="toggleVisibilidadeSenha('edit-senha-confirma', this)" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs">👁️</button>
@@ -310,24 +310,22 @@
         </div>
     </div>
 
+    <!-- ZOOM DA FOTO -->
     <div id="modal-zoom-foto" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50 animate-fade-in" onclick="fecharZoomFoto()">
         <div class="relative max-w-4xl w-full flex justify-center">
             <button class="absolute -top-10 right-0 text-white bg-slate-800/80 hover:bg-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition shadow">✕</button>
-            <img id="img-zoom-display" src="" class="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain border border-white/20">
+            <img id="img-zoom-display" src="" alt="Zoom da evidência" class="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain border border-white/20">
         </div>
     </div>
 
+    <!-- SCRIPTS CORE -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-
     <script src="js/config.js"></script>
-
     <script src="js/dashboard.js"></script>
 
     <script>
-        // Garante o funcionamento do olhinho da senha no modal de perfil
         function toggleVisibilidadeSenha(inputId, botao) {
             const input = document.getElementById(inputId);
             if (!input) return;
@@ -340,7 +338,6 @@
             }
         }
 
-        // Registro correto e seguro do Service Worker para o PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -349,14 +346,5 @@
             });
         }
     </script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('PWA: Service Worker Registrado com Sucesso!'))
-      .catch(err => console.error('Erro ao registrar PWA:', err));
-  }
-</script>
-
 </body>
 </html>
