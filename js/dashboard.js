@@ -44,12 +44,31 @@ const BANCO_PRODUTOS = {
         { codigo: "505881", nome: "Pão Hamb. Artesano Australiano 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 }
     ],
     "Linha 3": [
-        { codigo: "201", nome: "Pão de Forma Tradicional", cestosPorDolly: 28, produtosPorCesto: 10 },
-        { codigo: "202", nome: "Pão de Forma Integral", cestosPorDolly: 28, produtosPorCesto: 10 }
+        { codigo: "973515", nome: "PÃO FORMA 100% NATURAL TRIT. GIRASSOL E CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "973516", nome: "PÃO FORMA 100% NATURAL TRIT. CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "973517", nome: "PÃO DE FORMA 100% NATURAL TRADICIONAL 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "182", nome: "PÃO SUPREME CASTANHA DO PARÁ E QUINOA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "20109", nome: "PÃO GRÃOS E CASTANHA VITTA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "23004", nome: "PÃO ZERO 12 GRÃOS 350G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "23005", nome: "PÃO 12 GRÃOS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "28540", nome: "PÃO 100% NATURAL 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "28541", nome: "PÃO FRUTAS GRÃOS E CASTANHAS 500G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "500199", nome: "PÃO GRÃOS E CASTANHAS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "20108", nome: "PÃO 14 GRÃOS VITTA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503128", nome: "PÃO ABÓBORA E LINHAÇA 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503129", nome: "PÃO CRANBERRY E QUINOA 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503130", nome: "PÃO CASTANHA DO PARÁ E QUINOA 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503655", nome: "PÃO AVEIA SEMENTES E GRÃOS 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "965403", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "965402", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PVT", cestosPorDolly: 32, produtosPorCesto: 12 }
     ],
     "Linha 20K": [
-        { codigo: "301", nome: "Bisnaguinha Pullmann", cestosPorDolly: 30, produtosPorCesto: 16 },
-        { codigo: "302", nome: "Rap10 Tradicional", cestosPorDolly: 40, produtosPorCesto: 20 }
+        { codigo: "27636", nome: "Pão Integral 480g Pullman", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "9101", nome: "Pão Pullman Tradicional 480g", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "7515", nome: "Pão Artesano Tradicional 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "500290", nome: "Pão Artesano Intergral 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "503140", nome: "Pão Artesano Na Chapa 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "965253", nome: "Pão Artesano Brioche 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }
     ]
 };
 
@@ -277,11 +296,21 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
     e.preventDefault();
     
     const linha = document.getElementById('prod-linha').value;
+    // PASSO 1: Captura do Turno adicionado no HTML
+    const turno = document.getElementById('reg-turno-producao').value; 
     const produto = document.getElementById('prod-nome').value;
     
+    // PASSO 2: Ajuste da regra para quando for "Sem Lote"
     const loteSuperior = document.getElementById('prod-lote-sup').value.trim().toUpperCase();
     const loteInferior = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
-    const loteConsolidado = loteSuperior + " | " + loteInferior;
+    
+    let loteConsolidado = "";
+    // Se o lote superior ou inferior estiver marcado/escrito como sem lote, salva apenas "Sem Lote"
+    if (loteSuperior === "SEM LOTE" || loteInferior === "SEM LOTE" || (loteSuperior === "" && loteInferior === "")) {
+        loteConsolidado = "Sem Lote";
+    } else {
+        loteConsolidado = loteSuperior + " | " + loteInferior;
+    }
 
     const dollys = document.getElementById('prod-dollys').value;
     const cestos = document.getElementById('prod-cestos').value;
@@ -297,6 +326,7 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
     const novoItem = { 
         id: Date.now(), 
         linha,
+        turno, // PASSO 1: Adicionado ao banco
         produto, 
         lote: loteConsolidado, 
         quantidade: `${qtdTexto} (${dollys}D + ${cestos}C)`, 
@@ -305,7 +335,9 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
         foto: fotoProduto, 
         dataHora: dataHoraStr, 
         responsavel: usuarioLogado.nome, 
-        status: "Pendente" 
+        status: "Pendente", // Nasce pendente
+        motivoSupervisor: "", // PASSO 5: Inicializa vazio
+        motivoQualidade: ""   // PASSO 4: Inicializa vazio
     };
 
     db.ref('segregados/' + novoItem.id).set(novoItem)
@@ -323,15 +355,49 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
     });
 });
 
-window.julgarLote = function(id, statusFinal) {
-    if (!confirm(`Confirma a ação técnica de aplicar o status [${statusFinal.toUpperCase()}] para este lote? Ele será direcionado para o histórico.`)) return;
+// PASSO 5: Supervisor solicita ação para a Qualidade aprovar
+window.solicitarAcao = function(id, tipoSolicitacao) {
+    const motivo = prompt(`Digite o motivo técnico para a solicitação de ${tipoSolicitacao}:`);
+    if (!motivo || motivo.trim() === "") {
+        alert("Ação cancelada. É obrigatório informar o motivo da solicitação.");
+        return;
+    }
 
-    db.ref('segregados/' + id).update({ status: statusFinal })
-    .then(() => {
-        alert("Status atualizado com sucesso na nuvem!");
-    })
-    .catch(error => console.error("Erro ao julgar lote:", error));
-}
+    db.ref('segregados/' + id).update({
+        status: `Aguardando ${tipoSolicitacao}`,
+        motivoSupervisor: motivo.trim()
+    }).then(() => alert("Solicitação enviada com sucesso para análise da Qualidade!"));
+};
+
+// PASSO 4: Qualidade define o veredito (mudar status + input do motivo final)
+window.decisaoQualidade = function(id, novoStatus) {
+    db.ref('segregados/' + id).once('value').then((snapshot) => {
+        const item = snapshot.val();
+        const textoSugestao = item.motivoSupervisor ? item.motivoSupervisor : "";
+        
+        const motivoFinal = prompt(`Informe o motivo técnico para a ação de [${novoStatus}]:`, textoSugestao);
+        if (!motivoFinal || motivoFinal.trim() === "") {
+            alert("Ação cancelada. A Qualidade precisa preencher o motivo do parecer técnico.");
+            return;
+        }
+
+        db.ref('segregados/' + id).update({
+            status: novoStatus,
+            motivoQualidade: motivoFinal.trim(),
+            dataMudancaStatus: new Date().toISOString() // Salva o carimbo de data para o Passo 6 (15 dias)
+        }).then(() => alert(`Status do produto atualizado para: ${novoStatus}`));
+    });
+};
+
+// PASSO 3: Apenas mover para o arquivo/histórico definitivamente
+window.arquivarItem = function(id) {
+    if (!confirm("Deseja mover este item permanentemente para o histórico de arquivos?")) return;
+    
+    db.ref('segregados/' + id).update({
+        status: "Arquivado",
+        dataArquivamento: new Date().toISOString()
+    }).then(() => alert("Item movido para o histórico de arquivados."));
+};
 
 window.excluirItemHistorico = function(id) {
     if (!confirm("⚠️ ATENÇÃO: Deseja realmente deletar permanentemente este registro do histórico de auditoria? Esta ação não poderá ser desfeita.")) return;
@@ -353,46 +419,126 @@ function carregarTabelaSegregados(segregados) {
     const tabela = document.getElementById('tabela-segregados');
     if (!tabela) return;
     
-    let itensPendentes = segregados.filter(item => item.status === "Pendente");
+    // Filtra itens ativos (tudo que ainda NÃO foi arquivado)
+    let itensAtivos = segregados.filter(item => item.status !== "Arquivado");
     
-    document.getElementById('contador-itens').innerText = itensPendentes.length;
+    // Passo 6: Verificação de Automação de 15 Dias (Itens esquecidos sem arquivar)
+    const agoraMs = Date.now();
+    const quinzeDiasMs = 15 * 24 * 60 * 60 * 1000;
+    
+    itensAtivos.forEach(item => {
+        if (item.dataMudancaStatus) {
+            const dataStatusMs = new Date(item.dataMudancaStatus).getTime();
+            if ((agoraMs - dataStatusMs) >= quinzeDiasMs) {
+                // Executa o arquivamento automático silencioso na nuvem
+                db.ref('segregados/' + item.id).update({
+                    status: "Arquivado",
+                    dataArquivamento: new Date().toISOString(),
+                    arquivadoAutomatico: true
+                });
+            }
+        }
+    });
+    
+    document.getElementById('contador-itens').innerText = itensAtivos.length;
     tabela.innerHTML = "";
 
-    if (itensPendentes.length === 0) {
+    if (itensAtivos.length === 0) {
         tabela.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-400">Nenhum produto sob análise ativa no momento.</td></tr>`;
         return;
     }
 
-    itensPendentes.forEach(item => {
-        let acoesQA = `<p class="text-center text-xs text-slate-400 italic">Aguardando Avaliação</p>`;
+    itensAtivos.forEach(item => {
+        let acoesInterface = `<p class="text-center text-xs text-slate-400 italic">Aguardando Liberação</p>`;
+        const nivel = usuarioLogado.nivel;
         
-        if (usuarioLogado.nivel === "Qualidade" || usuarioLogado.nivel === "Administrador") {
-            acoesQA = `
-                <div class="grid grid-cols-2 gap-1 max-w-[220px] mx-auto">
-                    <button onclick="julgarLote(${item.id}, 'Liberado')" class="bg-green-600 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-green-700 transition">Liberar</button>
-                    <button onclick="julgarLote(${item.id}, 'Descartado')" class="bg-red-600 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-red-700 transition">Descartar</button>
-                    <button onclick="julgarLote(${item.id}, 'Reprocessar')" class="bg-blue-600 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-blue-700 transition">Reprocessar</button>
-                    <button onclick="julgarLote(${item.id}, 'Aparas')" class="bg-orange-500 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-orange-600 transition">Aparas</button>
-                    <button onclick="julgarLote(${item.id}, 'Arquivado')" class="col-span-2 bg-slate-700 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-slate-800 transition">📦 Apenas Arquivar no Histórico</button>
-                </div>
-            `;
+        // INTERFACE DO SUPERVISOR (Passo 5)
+        if (nivel === "Supervisor") {
+            if (item.status === "Pendente") {
+                acoesInterface = `
+                    <div class="grid grid-cols-1 gap-1 max-w-[180px] mx-auto">
+                        <button onclick="solicitarAcao(${item.id}, 'Liberação')" class="bg-amber-500 text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-amber-600 transition">📋 Solicitar Liberação</button>
+                        <button onclick="solicitarAcao(${item.id}, 'Descarte')" class="bg-red-500 text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-red-600 transition">🗑️ Solicitar Descarte</button>
+                    </div>
+                `;
+            } else {
+                acoesInterface = `
+                    <div class="text-center">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800 animate-pulse">${item.status}</span>
+                    </div>
+                `;
+            }
+        }
+        
+        // INTERFACE DA QUALIDADE / ADM (Passo 3 e 4)
+        if (nivel === "Qualidade" || nivel === "Administrador") {
+            if (item.status === "Pendente" || item.status.startsWith("Aguardando")) {
+                acoesInterface = `
+                    <div class="grid grid-cols-2 gap-1 max-w-[220px] mx-auto">
+                        <button onclick="decisaoQualidade(${item.id}, 'Liberado')" class="bg-green-600 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-green-700 transition">✓ Liberar</button>
+                        <button onclick="decisaoQualidade(${item.id}, 'Descartado')" class="bg-red-600 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-red-700 transition">𐄂 Descartar</button>
+                        <button onclick="decisaoQualidade(${item.id}, 'Reprocessar')" class="bg-blue-600 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-blue-700 transition">↻ Reprocessar</button>
+                        <button onclick="decisaoQualidade(${item.id}, 'Aparas')" class="bg-orange-500 text-white text-[10px] font-bold py-1 px-1 rounded hover:bg-orange-600 transition">✂ Aparas</button>
+                    </div>
+                `;
+            } else {
+                // Passo 3: Somente exibe botão arquivar após mudar o status (Liberado, Descartado, etc.)
+                acoesInterface = `
+                    <div class="max-w-[180px] mx-auto text-center">
+                        <button onclick="arquivarItem(${item.id})" class="w-full bg-slate-700 text-white text-[11px] font-bold py-1.5 px-2 rounded hover:bg-slate-800 transition shadow-sm">📦 Arquivar no Histórico</button>
+                    </div>
+                `;
+            }
         }
 
         const imagemTag = item.foto 
             ? `<img src="${item.foto}" class="w-10 h-10 object-cover rounded cursor-zoom-in hover:scale-105 transition shadow-sm" onclick="expandirFoto('${item.foto}')">` 
             : `<img src="https://placehold.co/50" class="w-10 h-10 object-cover rounded opacity-40">`;
 
-        const blocoObs = item.observacao 
-            ? `<div class="mt-1 text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 text-[11px]">💬 ${item.observacao}</div>` 
-            : '';
+        // Montagem das observações + Exibição dos motivos dinâmicos (Passo 4 e 5)
+        let blocoObs = item.observacao ? `<div class="mt-1 text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 text-[11px]">Dica/Obs: ${item.observacao}</div>` : '';
+        
+        if (item.motivoSupervisor) {
+            blocoObs += `<div class="mt-1 text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 text-[11px]">🔸 <b>Solicitação Super:</b> ${item.motivoSupervisor}</div>`;
+        }
+        if (item.motivoQualidade && (nivel === "Qualidade" || nivel === "Administrador")) {
+            blocoObs += `<div class="mt-1 text-green-700 bg-green-50 p-1.5 rounded border border-green-200 text-[11px]">🔹 <b>Parecer QA:</b> ${item.motivoQualidade}</div>`;
+        }
+
+        // Estilização dinâmica das tags de status
+        let badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-800">PENDENTE</span>`;
+        if (item.status.startsWith("Aguardando")) {
+            badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-blue-100 text-blue-800 text-[10px]">${item.status}</span>`;
+        } else if (item.status === "Liberado") {
+            badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-green-100 text-green-800">LIBERADO</span>`;
+        } else if (item.status === "Descartado") {
+            badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-red-100 text-red-800">DESCARTADO</span>`;
+        } else if (item.status === "Reprocessar") {
+            badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-blue-100 text-blue-800">REPROCESSAR</span>`;
+        } else if (item.status === "Aparas") {
+            badgeStatus = `<span class="px-2 py-0.5 rounded-full font-bold uppercase bg-orange-100 text-orange-800">APARAS</span>`;
+        }
+
+        // PASSO 7: Botão de impressão posicionado corretamente nos Itens Retidos (Ativos)
+        const botaoQRCode = `
+            <button onclick="gerarEtiquetaProduto(${item.id})" class="mt-2 w-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold py-1 px-1.5 rounded flex items-center justify-center gap-1 transition shadow-sm">
+                🖨️ Imprimir Etiqueta QR
+            </button>
+        `;
 
         tabela.innerHTML += `
             <tr class="border-b hover:bg-slate-50/70 text-xs">
                 <td class="p-2.5">${imagemTag}</td>
-                <td class="p-2.5"><b>${item.produto}</b><br><span class="font-mono text-blue-600 font-bold">${item.lote}</span><br><span class="text-slate-500 font-medium">${item.quantidade}</span></td>
+                <td class="p-2.5">
+                    <b>${item.produto}</b><br>
+                    <span class="font-mono text-blue-600 font-bold">${item.lote}</span><br>
+                    <span class="text-slate-500 font-medium text-[11px]">${item.quantidade}</span>
+                    ${item.turno ? `<br><span class="text-purple-700 font-bold text-[10px]">Turno: ${item.turno}</span>` : ''}
+                    ${botaoQRCode}
+                </td>
                 <td class="p-2.5"><span class="font-bold text-slate-700 block">⚠️ ${item.motivo}</span>${blocoObs}<span class="text-[10px] text-slate-400 block mt-1">Registrado por: ${item.responsavel} às ${item.dataHora}</span></td>
-                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-800">PENDENTE</span></td>
-                <td class="p-2.5">${acoesQA}</td>
+                <td class="p-2.5">${badgeStatus}</td>
+                <td class="p-2.5">${acoesInterface}</td>
             </tr>
         `;
     });
@@ -402,7 +548,8 @@ function carregarTabelaArquivo(segregados) {
     const tabela = document.getElementById('tabela-arquivo-historico');
     if (!tabela) return;
 
-    let itensConcluidos = segregados.filter(item => item.status !== "Pendente");
+    // Histórico mostra apenas o que foi arquivado definitivamente
+    let itensConcluidos = segregados.filter(item => item.status === "Arquivado");
 
     const agoraTimestamp = Date.now();
     const umDiaEmMs = 24 * 60 * 60 * 1000;
@@ -423,25 +570,22 @@ function carregarTabelaArquivo(segregados) {
     }
 
     itensConcluidos.sort((a,b) => b.id - a.id).forEach(item => {
-        let corStatus = "bg-green-100 text-green-800";
-        if (item.status === "Descartado") corStatus = "bg-red-100 text-red-800";
-        if (item.status === "Reprocessar") corStatus = "bg-blue-100 text-blue-800";
-        if (item.status === "Aparas") corStatus = "bg-orange-100 text-orange-800";
-        if (item.status === "Arquivado") corStatus = "bg-slate-200 text-slate-800";
+        let corStatus = "bg-slate-200 text-slate-800";
 
         const imagemTag = item.foto 
             ? `<img src="${item.foto}" class="w-10 h-10 object-cover rounded cursor-zoom-in hover:scale-105 transition shadow-sm" onclick="expandirFoto('${item.foto}')">` 
             : `<img src="https://placehold.co/50" class="w-10 h-10 object-cover rounded opacity-40">`;
 
-        const blocoObs = item.observacao 
-            ? `<div class="mt-1 text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 text-[11px]">💬 ${item.observacao}</div>` 
-            : '';
+        let blocoObs = item.observacao ? `<div class="mt-1 text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 text-[11px]">💬 ${item.observacao}</div>` : '';
+        if (item.motivoQualidade) {
+            blocoObs += `<div class="mt-1 text-green-700 bg-green-50 p-1.5 rounded border border-green-100 text-[10px]"><b>Motivo Final QA:</b> ${item.motivoQualidade}</div>`;
+        }
 
         let botaoExcluirHistorico = '';
         if (["Qualidade", "Administrador"].includes(usuarioLogado.nivel)) {
             botaoExcluirHistorico = `
-                <button onclick="excluirItemHistorico(${item.id})" class="text-red-600 hover:text-red-800 font-bold hover:underline transition">
-                    🗑️ Excluir
+                <button onclick="excluirItemHistorico(${item.id})" class="text-red-600 hover:text-red-800 font-bold hover:underline text-[11px] block mt-1 transition">
+                    🗑️ Deletar
                 </button>
             `;
         } else {
@@ -451,15 +595,98 @@ function carregarTabelaArquivo(segregados) {
         tabela.innerHTML += `
             <tr class="border-b bg-slate-50/40 hover:bg-slate-50 text-xs">
                 <td class="p-2.5">${imagemTag}</td>
-                <td class="p-2.5"><b>${item.produto}</b><br><span class="font-mono text-slate-500">${item.lote}</span><br><span class="text-slate-400">${item.quantidade}</span></td>
+                <td class="p-2.5">
+                    <b>${item.produto}</b><br>
+                    <span class="font-mono text-slate-500">${item.lote}</span><br>
+                    <span class="text-slate-400">${item.quantidade}</span>
+                </td>
                 <td class="p-2.5"><span class="font-bold text-slate-600 block">📋 ${item.motivo}</span>${blocoObs}<span class="text-[10px] text-slate-400 block mt-1">Gerado em: ${item.dataHora}</span></td>
-                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${corStatus}">${item.status}</span></td>
+                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${corStatus}">ARQUIVADO</span>${item.arquivadoAutomatico ? '<br><span class="text-[9px] text-amber-600 font-medium italic">Auto (15d)</span>' : ''}</td>
                 <td class="p-2.5 text-center font-medium text-slate-600">${item.responsavel}</td>
                 <td class="p-2.5 text-center">${botaoExcluirHistorico}</td>
             </tr>
         `;
     });
 }
+
+// ==========================================
+// 7. IMPRESSÃO DA ETIQUETA TERMICA E QR CODE
+// ==========================================
+window.gerarEtiquetaProduto = function(id) {
+    db.ref('segregados/' + id).once('value').then((snapshot) => {
+        const item = snapshot.val();
+        if (!item) {
+            alert("Erro: Produto não encontrado para gerar etiqueta.");
+            return;
+        }
+
+        const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
+       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlConsulta)}`;
+        const janelaImpressao = window.open('', '_blank', 'width=400,height=600');
+        
+        janelaImpressao.document.write(`
+            <html>
+            <head>
+                <title>Etiqueta de Retenção - Lote ${item.lote}</title>
+                <style>
+                    @page { size: 80mm 100mm; margin: 0; }
+                    body { 
+                        font-family: 'Courier New', Courier, monospace; 
+                        margin: 0; 
+                        padding: 12px; 
+                        text-align: center; 
+                        color: #000;
+                        background: #fff;
+                    }
+                    .header { font-size: 13px; font-weight: bold; border-bottom: 2px dashed #000; padding-bottom: 5px; margin-bottom: 8px; }
+                    .alerta { font-size: 16px; font-weight: bold; background: #000; color: #fff; padding: 4px; margin-bottom: 8px; display: inline-block; width: 100%; }
+                    .info-block { text-align: left; font-size: 11px; line-height: 1.4; margin-bottom: 8px; }
+                    .qrcode-container { margin: 8px 0; }
+                    .qrcode-container img { width: 125px; height: 125px; }
+                    .footer { font-size: 9px; border-top: 1px dashed #000; padding-top: 4px; margin-top: 5px; }
+                    @media print {
+                        body { width: 80mm; height: 100mm; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="alerta">PRODUTO RETIDO</div>
+                <div class="header">CONTROLE DE QUALIDADE</div>
+                
+                <div class="info-block">
+                    <b>PRODUTO:</b> ${item.produto}<br>
+                    <b>LOTE:</b> ${item.lote}<br>
+                    <b>QTD:</b> ${item.quantidade}<br>
+                    ${item.turno ? `<b>TURNO:</b> ${item.turno}<br>` : ''}
+                    <b>DATA:</b> ${item.dataHora}<br>
+                    <b>STATUS ATUAL:</b> ${item.status.toUpperCase()}<br>
+                    <b>RESP:</b> ${item.responsavel}
+                </div>
+
+                <div class="qrcode-container">
+                    <img src="${qrCodeUrl}" alt="QR Code Rastreabilidade">
+                    <div style="font-size: 9px; margin-top: 3px; font-weight: bold;">ESCANEE PARA RASTREABILIDADE</div>
+                </div>
+
+                <div class="footer">
+                    ID Interno: #RL-${item.id}
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 500);
+                    };
+                <\/script>
+            </body>
+            </html>
+        `);
+        janelaImpressao.document.close();
+    }).catch(err => {
+        console.error("Erro ao processar etiqueta:", err);
+        alert("Erro ao buscar dados para impressão.");
+    });
+};
 
 window.filtrarHistoricoTempo = function(periodo, botaoClicado) {
     filtroTempoAtivo = periodo;
@@ -491,7 +718,7 @@ window.fecharZoomFoto = function() {
 }
 
 // ==========================================
-// 7. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
+// 8. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
 // ==========================================
 function atualizarTabelaUsuarios(listaUsuarios) {
     let tabela = document.getElementById('tabela-usuarios-adm');
@@ -511,7 +738,6 @@ function atualizarTabelaUsuarios(listaUsuarios) {
             contagemPendentes++;
         }
 
-        // Gera uma chave segura para o Firebase usando o ID ou RE
         let userKey = user.re || user.email.replace(/[.#$\[\]]/g, "_");
 
         let linhaHTML = `
@@ -573,7 +799,7 @@ window.excluirUsuario = function(userKey) {
 }
 
 // ==========================================
-// 8. MODAL EDITAR PERFIL
+// 9. MODAL EDITAR PERFIL
 // ==========================================
 window.abrirModalPerfil = function() {
     document.getElementById('edit-nome').value = usuarioLogado.nome || '';
@@ -663,7 +889,7 @@ document.getElementById('form-editar-perfil').addEventListener('submit', functio
             return;
         }
         senhaDestino = senhaNova;
-        alert("Sua senha foi atualizada com sucesso!");
+        alert("Sua senha foi updated com sucesso!");
     }
 
     const dadosAtualizados = {
@@ -701,10 +927,8 @@ window.excluirMinhaConta = function() {
 }
 
 // ==========================================
-// 9. ESCUTA ATIVA EM TEMPO REAL (FIREBASE -> UI)
+// 10. ESCUTA ATIVA EM TEMPO REAL (FIREBASE -> UI)
 // ==========================================
-
-// Escuta em tempo real para os Produtos Segregados
 db.ref('segregados').on('value', (snapshot) => {
     const dados = snapshot.val();
     dadosSegregadosCache = [];
@@ -719,7 +943,6 @@ db.ref('segregados').on('value', (snapshot) => {
     carregarTabelaArquivo(dadosSegregadosCache);
 });
 
-// Escuta em tempo real para a Tabela de Controle de Usuários (Apenas se o cargo permitir ver o elemento na tela)
 if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) {
     db.ref('usuarios').on('value', (snapshot) => {
         const dados = snapshot.val();
