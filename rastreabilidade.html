@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreabilidade de Produto Retido</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App e Database (Versão compatível com o seu projeto) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body class="bg-slate-100 font-sans min-h-screen flex flex-col items-center justify-start p-4 select-none">
+
+    <!-- Container Principal -->
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mt-4">
+        
+        <!-- Cabeçalho de Status -->
+        <div id="topo-status" class="bg-slate-600 text-white text-center py-4 px-6 transition-colors duration-300">
+            <span class="text-xs uppercase tracking-widest font-semibold block opacity-75">Status do Lote</span>
+            <h1 id="texto-status" class="text-2xl font-black mt-0.5">CARREGANDO...</h1>
+        </div>
+
+        <!-- Bloco de Imagem do Produto -->
+        <div id="container-foto" class="relative bg-slate-50 border-b border-slate-100 flex items-center justify-center min-h-[180px]">
+            <div id="loading-foto" class="absolute text-slate-400 text-xs animate-pulse">Buscando evidência fotográfica...</div>
+            <img id="foto-produto" src="" class="w-full h-52 object-cover hidden">
+        </div>
+
+        <!-- Informações Técnicas -->
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Produto</label>
+                <div id="info-produto" class="text-lg font-bold text-slate-800">---</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Lote Corporativo</label>
+                    <div id="info-lote" class="font-mono text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block mt-0.5">---</div>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Quantidade</label>
+                    <div id="info-quantidade" class="text-sm font-semibold text-slate-700 mt-1">---</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                <div>
+                    <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Data/Hora Registro</label>
+                    <div id="info-data" class="text-xs text-slate-600 mt-0.5">---</div>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Turno</label>
+                    <div id="info-turno" class="text-xs text-purple-700 font-bold mt-0.5">---</div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3">
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Motivo do Bloqueio</label>
+                <div id="info-motivo" class="text-sm font-medium text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-100 mt-1">---</div>
+            </div>
+
+            <!-- Pareceres e Observações Dinâmicas -->
+            <div id="bloco-historico-acoes" class="space-y-2 border-t border-slate-100 pt-3 hidden">
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Histórico de Pareceres</label>
+                <div id="parecer-supervisor" class="hidden text-xs text-amber-800 bg-amber-50 p-2 rounded border border-amber-200"></div>
+                <div id="parecer-qualidade" class="hidden text-xs text-green-800 bg-green-50 p-2 rounded border border-green-200"></div>
+            </div>
+            
+            <div class="text-[10px] text-slate-400 text-center border-t border-slate-100 pt-4">
+                Registrado por: <span id="info-responsavel" class="font-medium text-slate-600">---</span><br>
+                Identificador Único: <span id="info-id" class="font-mono">---</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rodapé -->
+    <div class="text-center text-slate-400 text-[11px] mt-6">
+        Sistema de Segregação Digital &copy; 2026
+    </div>
+
+    <!-- Script de Configuração e Lógica -->
+    <script src="js/rastreabilidade.js"></script>
+</body>
+</html>

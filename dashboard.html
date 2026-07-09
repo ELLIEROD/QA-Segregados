@@ -11,8 +11,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- COLE ESTE BLOCO DO ESTILO AQUI -->
-    <style>
+<style>
     .bg-bimbo-wallpaper {
         background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url("img/background-bimbo.png");
         background-size: cover;
@@ -62,6 +61,17 @@
                             <option value="Linha 20K">Linha 20K</option>
                         </select>
                     </div>
+
+<div>
+    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Turno de Produção</label>
+    <select id="reg-turno-producao" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-600 outline-none">
+        <option value="">-- Selecione o Turno --</option>
+        <option value="1">1º Turno</option>
+        <option value="2">2º Turno</option>
+        <option value="3">3º Turno</option>
+        <option value="4">4º Turno</option>
+    </select>
+</div>
 
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Produto / Código</label>
