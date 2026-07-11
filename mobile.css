@@ -1,0 +1,105 @@
+/* ==========================================================
+   OTIMIZAÇÃO EXCLUSIVA PARA DISPOSITIVOS MÓVEIS (MOBILE APP)
+   ========================================================== */
+@media (max-width: 768px) {
+    /* Ajustes de Container e Fontes Gerais */
+    body {
+        padding: 8px !important;
+        font-size: 14px !important;
+        background-color: #f8fafc !important; 
+    }
+
+    /* Força os títulos das páginas a centralizarem no celular */
+    h1, h2 {
+        text-align: center !important;
+        font-size: 1.25rem !important;
+    }
+
+    /* TRANSFORMA AS TABELAS DO DASHBOARD EM CARDS DE APP */
+    table, thead, tbody, th, td, tr { 
+        display: block !important; 
+        width: 100% !important;
+    }
+    
+    thead { 
+        display: none !important; /* Esconde o cabeçalho original da tabela */
+    }
+
+    tr {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        margin-bottom: 16px !important;
+        padding: 14px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
+    }
+
+    td {
+        text-align: left !important;
+        padding: 6px 0 !important;
+        border: none !important;
+    }
+
+    /* Ajuste para a Foto do Produto ficar em destaque no card */
+    td:first-child {
+        display: flex !important;
+        justify-content: center !important;
+        background: #f1f5f9 !important;
+        border-radius: 8px !important;
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    td:first-child img {
+        width: 75px !important;
+        height: 75px !important;
+        border-radius: 6px !important;
+    }
+
+    /* Injeção de Legendas automáticas nas tabelas para visualização Mobile */
+    #tabela-segregados td:nth-child(2)::before { content: "📦 Produto / Lote: "; font-weight: bold; color: #475569; display: block; margin-bottom: 2px;}
+    #tabela-segregados td:nth-child(3)::before { content: "⚠️ Problema apontado: "; font-weight: bold; color: #475569; display: block; margin-bottom: 2px;}
+    #tabela-segregados td:nth-child(4)::before { content: "🚦 Status Atual: "; font-weight: bold; color: #475569; display: inline-block; margin-right: 5px;}
+    #tabela-segregados td:nth-child(5)::before { content: "⚡ Ações Disponíveis: "; font-weight: bold; color: #475569; display: block; margin-top: 8px; margin-bottom: 4px; border-top: 1px dashed #e2e8f0; padding-top: 8px;}
+
+    #tabela-arquivo-historico td:nth-child(2)::before { content: "📦 Produto / Lote: "; font-weight: bold; color: #475569; display: block; }
+    #tabela-arquivo-historico td:nth-child(3)::before { content: "📋 Histórico: "; font-weight: bold; color: #475569; display: block; }
+    #tabela-arquivo-historico td:nth-child(4)::before { content: "🚦 Situação Final: "; font-weight: bold; color: #475569; display: inline-block; margin-right: 5px;}
+    #tabela-arquivo-historico td:nth-child(5)::before { content: "👤 Responsável: "; font-weight: bold; color: #475569; display: inline-block; margin-right: 5px;}
+    #tabela-arquivo-historico td:nth-child(6)::before { content: "⚙️ Controle: "; font-weight: bold; color: #475569; display: block; margin-top: 5px;}
+
+    /* ENGENHARIA DE BOTÕES PARA TOQUE (Touch Friendly) */
+    button, input, select, textarea {
+        min-height: 46px !important; /* Tamanho ideal recomendado para o dedo em chão de fábrica */
+        font-size: 15px !important;
+        border-radius: 8px !important;
+    }
+
+    /* Faz os botões empilharem perfeitamente no celular */
+    .grid, .grid-cols-2, .grid-cols-3 {
+        grid-template-columns: 1fr !important; 
+        gap: 8px !important;
+        max-w: 100% !important;
+    }
+
+    button {
+        width: 100% !important;
+        padding: 12px !important;
+    }
+
+    /* Botão da Zebra em Destaque */
+    button[onclick*="gerenciarEscolhaImpressao"] {
+        background-color: #eff6ff !important;
+        color: #2563eb !important;
+        border: 1px solid #bfdbfe !important;
+        margin-top: 12px !important;
+    }
+
+    /* Ajuste de Modais (Telas cheias) */
+    .modal-content, #modal-zoom-foto > div {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px auto !important;
+        padding: 16px !important;
+    }
+}
