@@ -93,11 +93,10 @@
                         </div>
                         
                         <div class="flex items-center gap-2">
-                            <label for="prod-foto-lote" class="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-2 transition w-full justify-center">
-                                📸 <span>Tirar Foto para Escanear Lote Automático</span>
-                            </label>
-                            <!-- ALTERADO: Removido o 'capture="environment"' para proteger a RAM do celular -->
-                            <input type="file" id="prod-foto-lote" accept="image/*" class="hidden" onchange="capturarFotoLote(this)">
+                            <!-- MODIFICADO: Dispara diretamente a abertura da câmera in-app -->
+                            <button type="button" onclick="abrirCameraInApp('lote')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition">
+                                📸 <span>Tirar Foto para Escanear Lote</span>
+                            </button>
                         </div>
 
                         <canvas id="ocr-canvas" class="hidden"></canvas>
@@ -149,9 +148,12 @@
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-lg border border-dashed border-slate-300">
-                        <label for="prod-foto" class="block text-xs font-bold text-slate-700 uppercase mb-1">🖼️ Evidência / Foto</label>
-                        <!-- ALTERADO: Removido o 'capture="environment"' para permitir compressão estável -->
-                        <input type="file" id="prod-foto" accept="image/*" class="w-full text-xs text-slate-500" onchange="capturarFotoEvidencia(this)">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">🖼️ Evidência / Foto</label>
+                        
+                        <!-- MODIFICADO: Botão estilizado para abrir o fluxo de câmera controlado -->
+                        <button type="button" onclick="abrirCameraInApp('evidencia')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition mb-2">
+                            📸 Capturar Imagem da Evidência
+                        </button>
                         
                         <div id="prod-preview-container" class="mt-2 hidden">
                             <img id="prod-foto-preview" src="" alt="Prévia da evidência" class="w-full h-32 object-cover rounded border">
@@ -235,15 +237,14 @@
     <div id="modal-perfil" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
         <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-700 max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-slate-800 text-lg mb-2">Meu Perfil Profissional</h3>
-            <p class="text-xs text-slate-400 mb-4">Mantenha seus dados e sua senha updated para segurança.</p>
+            <p class="text-xs text-slate-400 mb-4">Mantenha seus dados e sua senha atualizados para segurança.</p>
             
             <form id="form-editar-perfil" class="space-y-3">
                 <div class="flex flex-col items-center bg-slate-50 p-3 rounded-xl border border-slate-200 mb-2">
                     <img id="edit-perfil-preview" src="https://www.w3schools.com/howto/img_avatar.png" alt="Prévia do perfil" class="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-sm mb-1">
-                    <label class="block text-[10px] font-bold text-blue-700 uppercase cursor-pointer hover:underline">
+                    <button type="button" onclick="abrirCameraInApp('perfil')" class="text-[10px] font-bold text-blue-700 uppercase hover:underline bg-transparent border-none cursor-pointer">
                         Alterar Foto
-                        <input type="file" id="edit-foto" accept="image/*" class="hidden">
-                    </label>
+                    </button>
                 </div>
 
                 <div>
@@ -320,6 +321,27 @@
         <div class="relative max-w-4xl w-full flex justify-center">
             <button class="absolute -top-10 right-0 text-white bg-slate-800/80 hover:bg-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition shadow">✕</button>
             <img id="img-zoom-display" src="" alt="Zoom da evidência" class="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain border border-white/20">
+        </div>
+    </div>
+
+    <!-- ADICIONADO: MODAL INTEGRADO DE CÂMERA (STREAM ATIVO DE BAIXO CONSUMO) -->
+    <div id="modal-camera" class="fixed inset-0 bg-slate-950 flex flex-col items-center justify-between p-4 hidden z-50 animate-fade-in">
+        <div class="w-full flex justify-between items-center max-w-md border-b border-slate-800 pb-3">
+            <h4 id="camera-titulo" class="text-white text-sm font-bold tracking-wide uppercase">Câmera Dispositivo</h4>
+            <button onclick="fecharCameraInApp()" class="text-white bg-slate-900 hover:bg-red-600 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+        </div>
+
+        <div class="relative w-full max-w-md flex-1 my-4 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-slate-800">
+            <video id="video-stream" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            <!-- Overlay visual para auxiliar no enquadramento do Lote -->
+            <div id="camera-overlay-lote" class="absolute inset-0 border-2 border-dashed border-blue-500/40 m-12 pointer-events-none hidden flex items-center justify-center">
+                <span class="text-[10px] text-blue-400 bg-black/60 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Alinhe o lote aqui</span>
+            </div>
+        </div>
+
+        <div class="w-full max-w-md flex flex-col gap-3 items-center border-t border-slate-800 pt-4">
+            <button id="btn-disparar-foto" class="w-16 h-16 bg-white border-4 border-slate-300 rounded-full active:scale-95 transition shadow-lg flex items-center justify-center focus:outline-none"></button>
+            <p class="text-slate-400 text-[11px] text-center">Enquadre o produto ou o código de lote sob boa iluminação antes de capturar.</p>
         </div>
     </div>
 
