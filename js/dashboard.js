@@ -323,18 +323,44 @@ window.fecharCameraInApp = function() {
 };
 
 /**
- * Captura o frame atual do elemento <video>
+/**
+ * Captura o frame atual do elemento <video> aplicando corte se for Lote
  */
 function dispararCapturaFoto() {
     const video = document.getElementById('video-stream');
     if (!video || !localVideoStream) return;
 
     const canvasCaptura = document.createElement('canvas');
-    canvasCaptura.width = video.videoWidth || 1280;
-    canvasCaptura.height = video.videoHeight || 720;
+    const videoLargura = video.videoWidth || 1280;
+    const videoAltura = video.videoHeight || 720;
     
     const ctx = canvasCaptura.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
+
+    if (contextoCameraAtual === 'lote') {
+        // Define o tamanho do corte centralizado (65% da largura e 25% da altura)
+        // Isso casa perfeitamente com o retângulo limitador visual da tela
+        const corteLargura = Math.floor(videoLargura * 0.65);
+        const corteAltura = Math.floor(videoAltura * 0.25);
+        
+        // Calcula a posição inicial (X, Y) para o corte ficar perfeitamente no centro
+        const corteX = Math.floor((videoLargura - corteLargura) / 2);
+        const corteY = Math.floor((videoAltura - corteAltura) / 2);
+
+        canvasCaptura.width = corteLargura;
+        canvasCaptura.height = corteAltura;
+
+        // Desenha APENAS a região central limitada do visor de lote
+        ctx.drawImage(
+            video, 
+            corteX, corteY, corteLargura, corteAltura, // Origem (Vídeo)
+            0, 0, corteLargura, corteAltura           // Destino (Canvas)
+        );
+    } else {
+        // Para evidência ou perfil, mantém a captura da imagem inteira normalmente
+        canvasCaptura.width = videoLargura;
+        canvasCaptura.height = videoAltura;
+        ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
+    }
     
     const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
     
@@ -355,7 +381,8 @@ function dispararCapturaFoto() {
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    préComprimirImagemBase64(rawBase64, 800, function(base64Comprimido) {
+    // Como a imagem já vem recortada e menor da câmera, reduzimos o resize do fallback para manter nitidez
+    préComprimirImagemBase64(rawBase64, 600, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
@@ -367,9 +394,10 @@ function processarOcrLote(rawBase64) {
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
+            // Filtro de binarização aprimorado para a área recortada
             for (let i = 0; i < data.length; i += 4) {
                 let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                let pixelFinal = (cinza < 150) ? 0 : 255;
+                let pixelFinal = (cinza < 140) ? 0 : 255; // Ajuste fino no limiar de contraste
                 data[i]     = pixelFinal;
                 data[i + 1] = pixelFinal;
                 data[i + 2] = pixelFinal;
@@ -440,41 +468,6 @@ function processarOcrLote(rawBase64) {
     });
 }
 
-function CalculeLoteFormatado(textoStr) {
-    return textoStr;
-}
-
-/**
- * Trata e insere a foto capturada como evidência
- */
-function processarFotoEvidencia(rawBase64) {
-    if (!rawBase64) return;
-    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
-        const previewElement = document.getElementById('prod-foto-preview');
-        if (previewElement) {
-            previewElement.src = base64Comprimido;
-            previewElement.dataset.base64 = base64Comprimido; 
-        }
-        const container = document.getElementById('prod-preview-container');
-        if (container) {
-            container.classList.remove('hidden');
-        }
-    });
-}
-
-/**
- * Trata e insere a foto dentro do formulário do Modal de Perfil
- */
-function processarFotoPerfil(rawBase64) {
-    if (!rawBase64) return;
-    préComprimirImagemBase64(rawBase64, 400, function(base64Comprimido) {
-        const perfilPreview = document.getElementById('edit-perfil-preview');
-        if (perfilPreview) {
-            perfilPreview.src = base64Comprimido;
-            perfilPreview.dataset.base64 = base64Comprimido;
-        }
-    });
-}
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
