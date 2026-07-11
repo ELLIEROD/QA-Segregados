@@ -104,20 +104,11 @@
     }
 }
 
-/* ... resto do seu código atual ... */
-
-    /* Ajuste de Modais (Telas cheias) */
-    .modal-content, #modal-zoom-foto > div {
-        width: 95% !important;
-        max-width: 95% !important;
-        margin: 10px auto !important;
-        padding: 16px !important;
-    }
-
-    /* ==========================================
-       NOVO: CUSTOMIZAÇÃO DA CAPTURA DE LOTE
+/* ==========================================
+       CUSTOMIZAÇÃO EXCLUSIVA DA CAPTURA DE LOTE
        ========================================== */
-    #camera-overlay-lote {
+    /* O overlay só aplica os efeitos se a classe .modo-lote estiver ativa */
+    #camera-overlay-lote.modo-lote {
         margin: 0 !important;
         border: none !important;
         display: flex !important;
@@ -127,19 +118,19 @@
         top: 0; left: 0; width: 100%; height: 100%;
     }
 
-    #camera-overlay-lote::before {
+    #camera-overlay-lote.modo-lote::before {
         content: "";
-        width: 260px !important;  /* Proporção retangular estreita */
-        height: 80px !important;  /* Próximo a 6x2 cm no mobile */
+        width: 280px !important;  
+        height: 95px !important;  /* Um pouco mais alto para garantir as duas linhas */
         border: 3px dashed #3b82f6 !important; 
         border-radius: 8px !important;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6) !important; /* Escurece o fundo ao redor */
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6) !important; 
         position: absolute !important;
     }
 
-    #camera-overlay-lote span {
+    #camera-overlay-lote.modo-lote span {
         position: absolute !important;
-        transform: translateY(-65px) !important; /* Coloca o texto acima do retângulo */
+        transform: translateY(-70px) !important; 
         background-color: #3b82f6 !important;
         color: white !important;
         font-size: 12px !important;
@@ -148,4 +139,3 @@
         border-radius: 4px !important;
         white-space: nowrap !important;
     }
-} /* <--- ESSA CHAVE FECHA A MEDIA QUERY E DEVE CONTINUAR SENDO A ÚLTIMA LINHA DO ARQUIVO */
