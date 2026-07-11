@@ -186,6 +186,43 @@ window.toggleLote = function(checkbox) {
 // ==========================================
 // 4. SCANNER OCR E CAPTURA DE FOTOS
 // ==========================================
+
+// Função auxiliar para comprimir imagens direto do arquivo e evitar estouro de memória no Mobile
+function préComprimirArquivo(file, larguraMaxima, callback) {
+    // Cria um link temporário leve para o arquivo em vez de carregar os MBs na memória
+    const urlTemporaria = URL.createObjectURL(file);
+    const img = new Image();
+    
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let largura = img.width;
+        let height = img.height;
+        
+        // Redimensiona mantendo a proporção
+        if (largura > larguraMaxima) {
+            height = (height / largura) * larguraMaxima;
+            largura = larguraMaxima;
+        }
+        
+        canvas.width = largura;
+        canvas.height = height;
+        
+        ctx.drawImage(img, 0, 0, largura, height);
+        
+        // Exporta como JPEG comprimido a 75% de qualidade (gera um arquivo super leve de ~150KB)
+        const resultadoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+        
+        // Limpa a memória liberando a URL temporária
+        URL.revokeObjectURL(urlTemporaria);
+        
+        callback(resultadoBase64);
+    };
+    
+    img.src = urlTemporaria;
+}
+
 window.capturarFotoLote = function(input) {
     const file = input.files[0];
     if (!file) return;
@@ -194,19 +231,19 @@ window.capturarFotoLote = function(input) {
     const originalText = labelSpan.innerText;
     labelSpan.innerText = "⏳ Lendo Lote... Aguarde";
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
+    // Executa a compressão antes de entregar ao Tesseract OCR
+    préComprimirArquivo(file, 700, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.getElementById('ocr-canvas');
             if (!canvas) return;
             
             const ctx = canvas.getContext('2d');
-            const LARGURA_FIXA = 700; 
-            canvas.width = LARGURA_FIXA;
-            canvas.height = (img.height / img.width) * LARGURA_FIXA;
+            canvas.width = img.width;
+            canvas.height = img.height;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
+            // Filtro de Binarização (Preto e Branco) para melhorar o OCR
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
@@ -219,6 +256,7 @@ window.capturarFotoLote = function(input) {
             }
             ctx.putImageData(imgData, 0, 0);
 
+            // Processa o OCR na imagem já reduzida e tratada
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
             })
@@ -267,9 +305,8 @@ window.capturarFotoLote = function(input) {
                 labelSpan.innerText = originalText;
             });
         };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+        img.src = base64Comprimido;
+    });
 }
 
 function CalculeLoteFormatado(textoStr) {
@@ -278,15 +315,23 @@ function CalculeLoteFormatado(textoStr) {
 
 window.capturarFotoEvidencia = function(input) {
     const file = input.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('prod-foto-preview').src = e.target.result;
-            document.getElementById('prod-preview-container').classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    // Reduz a imagem de evidência para no máximo 1024px de largura (ideal para visualização em telas)
+    préComprimirArquivo(file, 1024, function(base64Comprimido) {
+        const previewElement = document.getElementById('prod-foto-preview');
+        if (previewElement) {
+            previewElement.src = base64Comprimido;
+            // Salva a string comprimida leve no atributo global/variável que seu Firebase usa no submit
+            previewElement.dataset.base64 = base64Comprimido; 
+        }
+        const container = document.getElementById('prod-preview-container');
+        if (container) {
+            container.classList.remove('hidden');
+        }
+    });
 }
+
 
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
