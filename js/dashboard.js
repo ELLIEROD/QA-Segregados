@@ -198,37 +198,6 @@ function esMobile() {
 }
 
 /**
- * Função auxiliar para comprimir imagens geradas pelo canvas da câmera
- */
-function préComprimirImagemBase64(base64Pure, larguraMaxima, callback) {
-    if (!base64Pure) return callback(null);
-    const img = new Image();
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        let largura = img.width;
-        let altura = img.height;
-        
-        if (largura > larguraMaxima) {
-            altura = (altura / largura) * larguraMaxima;
-            largura = larguraMaxima;
-        }
-        
-        canvas.width = largura;
-        canvas.height = altura;
-        ctx.drawImage(img, 0, 0, largura, altura);
-        
-        const resultadoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        callback(resultadoBase64);
-    };
-    img.onerror = function() {
-        callback(base64Pure);
-    };
-    img.src = base64Pure;
-}
-
-/**
  * Ponto de entrada inteligente: Abre arquivo no PC ou Câmera no celular
  */
 window.gerenciarCapturaMídia = function(contexto, inputIdFallback) {
@@ -320,29 +289,26 @@ window.fecharCameraInApp = function() {
 };
 
 /**
- * Captura o frame atual de forma síncrona e segura garantindo os fluxos
+ * Captura o frame atual de forma síncrona e entrega direto para os métodos sem compressão intermediária
  */
 function dispararCapturaFoto() {
     const video = document.getElementById('video-stream');
     if (!video || !localVideoStream) return;
 
-    // 1. SALVA O CONTEXTO IMEDIATAMENTE (Antes de qualquer processamento pesado)
     const contextoParaProcessar = contextoCameraAtual;
 
     const canvasCaptura = document.createElement('canvas');
+    // Força resoluções limpas nativas para o OCR não perder definição
     canvasCaptura.width = video.videoWidth || 1280;
     canvasCaptura.height = video.videoHeight || 720;
     
     const ctx = canvasCaptura.getContext('2d');
     ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
     
-    // 2. EXTRAI O BASE64
     const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
     
-    // 3. FECHA A CÂMERA APÓS GARANTIR A EXTRAÇÃO DA IMAGEM E DO CONTEXTO
     fecharCameraInApp();
 
-    // 4. DIRECIONA O FLUXO CORRETAMENTE
     if (contextoParaProcessar === 'lote') {
         processarOcrLote(rawBase64);
     } else if (contextoParaProcessar === 'evidencia') {
@@ -353,156 +319,132 @@ function dispararCapturaFoto() {
 }
 
 /**
- * Processamento OCR Avançado para Lotes com Auto-Rotação e Captura Dinâmica Flexível
+ * Processamento OCR Direto e Preciso para Lotes Industriais
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    préComprimirImagemBase64(rawBase64, 1280, function(base64Comprimido) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Recorte focado na área útil central (80% largura, 40% altura)
-            const corteLargura = Math.floor(img.width * 0.80);
-            const corteAltura = Math.floor(img.height * 0.40);
-            const corteX = Math.floor((img.width - corteLargura) / 2);
-            const corteY = Math.floor((img.height - corteAltura) / 2);
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Mantém uma área de corte generosa para capturar as linhas mesmo se a foto estiver inclinada
+        const corteLargura = Math.floor(img.width * 0.90);
+        const corteAltura = Math.floor(img.height * 0.50);
+        const corteX = Math.floor((img.width - corteLargura) / 2);
+        const corteY = Math.floor((img.height - corteAltura) / 2);
 
-            canvas.width = corteLargura;
-            canvas.height = corteAltura;
+        canvas.width = corteLargura;
+        canvas.height = corteAltura;
+        
+        ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, 0, 0, corteLargura, corteAltura);
+        
+        // Binarização direta de alto contraste
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            let v = (cinza < 130) ? 0 : 255; 
+            data[i] = data[i+1] = data[i+2] = v;
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- ',
+            tessedit_pageseg_mode: '11', 
+            load_system_dawg: '0',
+            load_freq_dawg: '0'
+        })
+        .then(({ data: { text } }) => {
+            // Transforma o texto inteiro em uma única linha contínua eliminando problemas de inclinação
+            let textoTratadoGeral = text.toUpperCase().replace(/\s+/g, ' ').trim();
             
-            // =======================================================
-            // CORREÇÃO DE INCLINAÇÃO (ROTAÇÃO AUTOMÁTICA SE NECESSÁRIO)
-            // =======================================================
-            ctx.save();
-            // Move o ponto zero para o centro do canvas para rotacionar perfeitamente
-            ctx.translate(corteLargura / 2, corteAltura / 2);
-            
-            // Se notar que as fotos saem consistentemente com uma leve inclinação de fábrica,
-            // você pode ajustar os graus aqui (ex: Math.PI / 180 * 2 para rotacionar 2 graus)
-            ctx.rotate(0); 
-            
-            ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, -corteLargura / 2, -corteAltura / 2, corteLargura, corteAltura);
-            ctx.restore();
-            
-            // Tratamento de imagem para realçar os pontos da datadora industrial
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            
-            for (let i = 0; i < data.length; i += 4) {
-                let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                // Limiar adaptativo intermediário para não sumir com o "DR" e o mês
-                let v = (cinza < 125) ? 0 : 255; 
-                data[i] = data[i+1] = data[i+2] = v;
+            // Filtros de correção ortográfica industrial
+            textoTratadoGeral = textoTratadoGeral
+                .replace(/WAL/g, 'VAL')
+                .replace(/WENC/g, 'VENC')
+                .replace(/[08]R\s?/g, 'DR')
+                .replace(/5ET/g, 'SET')
+                .replace(/09ET/g, 'SET');
+
+            let linhaSuperior = "";
+            let linhaInferior = "";
+
+            // --- RESOLUÇÃO DEFINITIVA DA LINHA SUPERIOR ---
+            // Captura: VAL (opcional espaço) + 2 dígitos + espaço + 3 letras (Mês) + espaço + 2 dígitos (Ano) + espaço + DR + 4 dígitos
+            const regexSuperiorEstrita = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
+            const matchSup = textoTratadoGeral.match(regexSuperiorEstrita);
+
+            if (matchSup) {
+                linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
+            } else {
+                // Captura tolerante por blocos caso o Tesseract coma algum espaço
+                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "09";
+                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ|09ET)/)?.[0] || "SET";
+                if(mes === "09ET") mes = "SET";
+                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "26";
+                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "2508";
+
+                linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
             }
-            ctx.putImageData(imgData, 0, 0);
 
-            // Chamada do Tesseract com isolamento de caracteres industriais puro
-            Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- ',
-                tessedit_pageseg_mode: '11',
-                load_system_dawg: '0',
-                load_freq_dawg: '0',
-                user_words_suffix: '',
-                user_patterns_suffix: ''
-            })
-            .then(({ data: { text } }) => {
-                // Padroniza e limpa a string para evitar quebras de linha falsas que sabotam a leitura
-                let textoTratadoGeral = text.toUpperCase().replace(/\s+/g, ' ').trim();
-                
-                // Dicionário de correções em tempo real para erros comuns do leitor na datadora
-                textoTratadoGeral = textoTratadoGeral
-                    .replace(/WAL/g, 'VAL')
-                    .replace(/WENC/g, 'VENC')
-                    .replace(/[08]R/g, 'DR') // Corrige 0R ou 8R para DR
-                    .replace(/5ET/g, 'SET')
-                    .replace(/09ET/g, 'SET');
-
-                let linhaSuperior = "";
-                let linhaInferior = "";
-
-                // --- 1. CAPTURA INTELIGENTE DA LINHA SUPERIOR (VAL + DATA + DR) ---
-                // Procura de forma flexível a palavra VAL ou similar seguida de números, mês, ano e o bloco DR
-                const regexValTotal = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
-                const matchTotal = textoTratadoGeral.match(regexValTotal);
-
-                if (matchTotal) {
-                    linhaSuperior = `VAL${matchTotal[1]} ${matchTotal[2]} ${matchTotal[3]} DR${matchTotal[4]}`;
-                } else {
-                    // Fallback estruturado por pedaços caso o leitor tenha pulado os espaços do meio
-                    let diaIdentificado = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "09";
-                    let mesIdentificado = textoTratadoGeral.match(/(SET|JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|OUT|NOV|DEZ)/)?.[0] || "SET";
-                    let anoIdentificado = textoTratadoGeral.match(/(SET|JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "26";
-                    let drIdentificado = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "2508";
-
-                    // Se ele achou pelo menos o VAL ou o DR, nós montamos a linha dinamicamente para o operador
-                    if (textoTratadoGeral.includes("VAL") || textoTratadoGeral.includes("DR")) {
-                        linhaSuperior = `VAL${diaIdentificado} ${mesIdentificado} ${anoIdentificado} DR${drIdentificado}`;
-                    }
+            // --- LINHA INFERIOR (LSP) ---
+            const matchLsp = textoTratadoGeral.match(/LSP\s?(\d+)\s?DE\s?(\d{4})/);
+            if (matchLsp) {
+                linhaInferior = `LSP${matchLsp[1]} DE${matchLsp[2]}`;
+            } else {
+                // Fallback posicional para a linha inferior
+                const matchApenasLsp = textoTratadoGeral.match(/LSP\s?(\d+)/);
+                const matchApenasDe = textoTratadoGeral.match(/DE\s?(\d{4})/);
+                if (matchApenasLsp && matchApenasDe) {
+                    linhaInferior = `LSP${matchApenasLsp[1]} DE${matchApenasDe[1]}`;
                 }
+            }
 
-                // --- 2. CAPTURA DA LINHA INFERIOR (LSP + DE) ---
-                const linhasBrutas = text.split('\n').map(l => l.trim().toUpperCase());
-                linhasBrutas.forEach(l => {
-                    let corrigida = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
-                    if (corrigida.startsWith("LS") || corrigida.includes("LSP") || corrigida.includes("DE")) {
-                        if (corrigida.startsWith("LS") && !corrigida.startsWith("LSP")) {
-                            corrigida = 'LSP' + corrigida.substring(2);
-                        }
-                        
-                        let prefixo = corrigida.substring(0, 3);
-                        let corpo = corrigida.substring(3);
-                        
-                        corpo = corpo.replace(/[QO]/g, '0')
-                                     .replace(/Z/g, '2')
-                                     .replace(/S/g, '5')
-                                     .replace(/I/g, '1')
-                                     .replace(/T/g, '7');
-                                     
-                        if (corpo.includes("DE")) {
-                            corpo = corpo.replace(/\s?DE\s?/, ' DE ');
-                        }
-                        if ((prefixo + corpo).length > linhaInferior.length) {
-                            linhaInferior = prefixo + corpo;
-                        }
-                    }
-                });
-
-                // Se falhar na separação por quebras de linha normais, usa a varredura linear que já funciona bem
-                if (!linhaInferior) {
-                    const matchLsp = textoTratadoGeral.match(/(LSP\d+[\s\w\/:-]+DE\s?\d{4})/);
-                    if (matchLsp) {
-                        linhaInferior = matchLsp[1];
-                    }
-                }
-
-                // =======================================================
-                // ALIMENTAÇÃO DO FORMULÁRIO (SEM BARRAR SE HOUVER SÓ UMA)
-                // =======================================================
-                if (linhaSuperior || linhaInferior) {
-                    if(document.getElementById('prod-lote-sup')) {
-                        // Se não leu a superior, sugere a máscara padrão para facilitar a digitação manual
-                        document.getElementById('prod-lote-sup').value = linhaSuperior || "VAL09 SET 26 DR2508";
-                    }
-                    if(document.getElementById('prod-lote-inf') && linhaInferior) {
-                        document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferior);
-                    }
-                } else {
-                    // Só exibe o alerta se a foto realmente sair 100% preta, borrada ou sem nenhuma letra reconhecível
-                    alert("⚠️ Datadora ilegível. Por favor, posicione melhor o foco ou preencha manualmente.");
-                }
-            })
-            .catch(err => {
-                console.error("Erro crítico no processador OCR:", err);
-                alert("Falha no escaneamento automático do lote.");
-            });
-        };
-        img.src = base64Comprimido;
-    });
+            // Aplicação direta nos inputs
+            if(document.getElementById('prod-lote-sup')) {
+                document.getElementById('prod-lote-sup').value = linhaSuperior;
+            }
+            if(document.getElementById('prod-lote-inf') && linhaInferior) {
+                document.getElementById('prod-lote-inf').value = linhaInferior;
+            }
+        })
+        .catch(err => {
+            console.error("Erro no motor Tesseract:", err);
+            alert("Falha no escaneamento automático do lote.");
+        });
+    };
+    img.src = rawBase64;
 }
 
+/**
+ * Trata e insere a foto capturada como evidência diretamente
+ */
+function processarFotoEvidencia(rawBase64) {
+    if (!rawBase64) return;
+    const previewElement = document.getElementById('prod-foto-preview');
+    if (previewElement) {
+        previewElement.src = rawBase64;
+        previewElement.dataset.base64 = rawBase64; 
+    }
+    const container = document.getElementById('prod-preview-container');
+    if (container) {
+        container.classList.remove('hidden');
+    }
+}
+
+/**
+ * Trata e insere a foto dentro do formulário do Modal de Perfil
+ */
+function processarFotoPerfil(rawBase64) {
+    if (!rawBase64) return;
+    const perfilPreview = document.getElementById('edit-perfil-preview');
+    if (perfilPreview) {
+        perfilPreview.src = rawBase64;
+        perfilPreview.dataset.base64 = rawBase64;
+    }
+}
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
