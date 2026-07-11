@@ -184,55 +184,146 @@ window.toggleLote = function(checkbox) {
 }
 
 // ==========================================
-// 4. SCANNER OCR E CAPTURA DE FOTOS
+// 4. SCANNER OCR E CAPTURA DE FOTOS (IN-APP)
 // ==========================================
 
-// Função auxiliar para comprimir imagens direto do arquivo e evitar estouro de memória no Mobile
-function préComprimirArquivo(file, larguraMaxima, callback) {
-    // Cria um link temporário leve para o arquivo em vez de carregar os MBs na memória
-    const urlTemporaria = URL.createObjectURL(file);
+// Variáveis globais para gerenciar o ciclo de vida do stream de vídeo
+let localVideoStream = null;
+let contextoCameraAtual = null; // 'lote', 'evidencia' ou 'perfil'
+
+/**
+ * Função auxiliar para comprimir imagens geradas pelo canvas da câmera
+ * Evita estouro de memória no Mobile e garante arquivos leves (~150KB)
+ */
+function préComprimirImagemBase64(base64Pure, larguraMaxima, callback) {
     const img = new Image();
-    
     img.onload = function() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
         let largura = img.width;
-        let height = img.height;
+        let altura = img.height;
         
-        // Redimensiona mantendo a proporção
         if (largura > larguraMaxima) {
-            height = (height / largura) * larguraMaxima;
+            altura = (altura / largura) * larguraMaxima;
             largura = larguraMaxima;
         }
         
         canvas.width = largura;
-        canvas.height = height;
+        canvas.height = altura;
+        ctx.drawImage(img, 0, 0, largura, altura);
         
-        ctx.drawImage(img, 0, 0, largura, height);
-        
-        // Exporta como JPEG comprimido a 75% de qualidade (gera um arquivo super leve de ~150KB)
+        // Exporta como JPEG comprimido a 75% de qualidade
         const resultadoBase64 = canvas.toDataURL('image/jpeg', 0.75);
-        
-        // Limpa a memória liberando a URL temporária
-        URL.revokeObjectURL(urlTemporaria);
-        
         callback(resultadoBase64);
     };
-    
-    img.src = urlTemporaria;
+    img.src = base64Pure;
 }
 
-window.capturarFotoLote = function(input) {
-    const file = input.files[0];
-    if (!file) return;
+/**
+ * Abre o modal customizado e inicia o stream da câmera traseira do dispositivo
+ */
+window.abrirCameraInApp = function(contexto) {
+    contextoCameraAtual = contexto;
+    
+    const modal = document.getElementById('modal-camera');
+    const video = document.getElementById('video-stream');
+    const overlayLote = document.getElementById('camera-overlay-lote');
+    const titulo = document.getElementById('camera-titulo');
+    
+    if (!modal || !video) return;
 
-    const labelSpan = input.previousElementSibling.querySelector('span');
-    const originalText = labelSpan.innerText;
-    labelSpan.innerText = "⏳ Lendo Lote... Aguarde";
+    // Atualiza o título e exibe o guia tracejado se for leitura de lote
+    if (contexto === 'lote') {
+        titulo.innerText = "Escanear Código de Lote";
+        if (overlayLote) overlayLote.classList.remove('hidden');
+    } else {
+        titulo.innerText = contexto === 'perfil' ? "Foto de Perfil" : "Foto da Evidência";
+        if (overlayLote) overlayLote.classList.add('hidden');
+    }
 
-    // Executa a compressão antes de entregar ao Tesseract OCR
-    préComprimirArquivo(file, 700, function(base64Comprimido) {
+    modal.classList.remove('hidden');
+
+    // Configura as restrições focando na câmera traseira (ideal para leitura de perto)
+    const constraints = {
+        video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        },
+        audio: false
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+            localVideoStream = stream;
+            video.srcObject = stream;
+            
+            // Evento dinâmico para o botão de disparo físico do modal
+            const btnDisparar = document.getElementById('btn-disparar-foto');
+            if (btnDisparar) {
+                btnDisparar.onclick = () => dispararCapturaFoto();
+            }
+        })
+        .catch(err => {
+            console.error("Erro ao acessar a câmera do dispositivo:", err);
+            alert("Não foi possível acessar a câmera do aparelho. Verifique as permissões de privacidade.");
+            fecharCameraInApp();
+        });
+};
+
+/**
+ * Interrompe os tracks de hardware da câmera e limpa o elemento de vídeo
+ */
+window.fecharCameraInApp = function() {
+    const modal = document.getElementById('modal-camera');
+    const video = document.getElementById('video-stream');
+    
+    if (modal) modal.classList.add('hidden');
+    
+    if (localVideoStream) {
+        localVideoStream.getTracks().forEach(track => track.stop());
+        localVideoStream = null;
+    }
+    if (video) video.srcObject = null;
+};
+
+/**
+ * Captura o frame atual do elemento <video>, congela o stream e processa o dado
+ */
+function dispararCapturaFoto() {
+    const video = document.getElementById('video-stream');
+    if (!video || !localVideoStream) return;
+
+    // Cria um canvas em memória estrito para capturar exatamente o tamanho do vídeo nativo
+    const canvasCaptura = document.createElement('canvas');
+    canvasCaptura.width = video.videoWidth;
+    canvasCaptura.height = video.videoHeight;
+    
+    const ctx = canvasCaptura.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
+    
+    const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
+    
+    // Desliga a câmera imediatamente após o clique para poupar processamento
+    fecharCameraInApp();
+
+    // Roteia o processamento conforme o contexto ativo
+    if (contextoCameraAtual === 'lote') {
+        processarOcrLote(rawBase64);
+    } else if (contextoCameraAtual === 'evidencia') {
+        processarFotoEvidencia(rawBase64);
+    } else if (contextoCameraAtual === 'perfil') {
+        processarFotoPerfil(rawBase64);
+    }
+}
+
+/**
+ * Executa o tratamento de imagem (Binarização) e chama a biblioteca Tesseract OCR
+ */
+function processarOcrLote(rawBase64) {
+    // Reduz para 700px antes de realizar a análise pesada de OCR
+    préComprimirImagemBase64(rawBase64, 700, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.getElementById('ocr-canvas');
@@ -243,7 +334,7 @@ window.capturarFotoLote = function(input) {
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
-            // Filtro de Binarização (Preto e Branco) para melhorar o OCR
+            // Filtro de Binarização (Preto e Branco puro) para aumentar assertividade na datadora
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
@@ -256,7 +347,7 @@ window.capturarFotoLote = function(input) {
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Processa o OCR na imagem já reduzida e tratada
+            // Inicia o motor do Tesseract
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
             })
@@ -294,15 +385,12 @@ window.capturarFotoLote = function(input) {
                     document.getElementById('prod-lote-sup').value = linhas[0];
                     document.getElementById('prod-lote-inf').value = "";
                 } else {
-                    alert("⚠️ Erro de leitura física na datadora. Digite o lote manualmente.");
+                    alert("⚠️ Não foi possível ler as linhas da datadora de forma clara. Digite manualmente.");
                 }
             })
             .catch(err => {
                 console.error("Erro OCR:", err);
-                alert("Falha no escaneamento automático.");
-            })
-            .finally(() => {
-                labelSpan.innerText = originalText;
+                alert("Falha no escaneamento automático do lote.");
             });
         };
         img.src = base64Comprimido;
@@ -313,21 +401,35 @@ function CalculeLoteFormatado(textoStr) {
     return textoStr;
 }
 
-window.capturarFotoEvidencia = function(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    // Reduz a imagem de evidência para no máximo 1024px de largura (ideal para visualização em telas)
-    préComprimirArquivo(file, 1024, function(base64Comprimido) {
+/**
+ * Trata e insere a foto capturada como evidência no formulário principal
+ */
+function processarFotoEvidencia(rawBase64) {
+    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
         const previewElement = document.getElementById('prod-foto-preview');
         if (previewElement) {
             previewElement.src = base64Comprimido;
-            // Salva a string comprimida leve no atributo global/variável que seu Firebase usa no submit
+            // Preserva a string leve em formato DataURL para ser extraída no submit do Firebase
             previewElement.dataset.base64 = base64Comprimido; 
         }
         const container = document.getElementById('prod-preview-container');
         if (container) {
             container.classList.remove('hidden');
+        }
+    });
+}
+
+/**
+ * Trata e insere a foto dentro do formulário interno do Modal de Perfil
+ */
+function processarFotoPerfil(rawBase64) {
+    // Fotos de perfil podem ser menores (400px de largura é excelente para avatares)
+    préComprimirImagemBase64(rawBase64, 400, function(base64Comprimido) {
+        const perfilPreview = document.getElementById('edit-perfil-preview');
+        if (perfilPreview) {
+            perfilPreview.src = base64Comprimido;
+            // Guarda para a função de salvamento do perfil ler
+            perfilPreview.dataset.base64 = base64Comprimido;
         }
     });
 }
