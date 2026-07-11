@@ -233,13 +233,19 @@ window.abrirCameraInApp = function(contexto) {
     
     if (!modal || !video) return;
 
-    // Atualiza o título e exibe o guia tracejado se for leitura de lote
+    // Atualiza o título e gerencia as classes do overlay de lote de forma estrita
     if (contexto === 'lote') {
         titulo.innerText = "Escanear Código de Lote";
-        if (overlayLote) overlayLote.classList.remove('hidden');
+        if (overlayLote) {
+            overlayLote.classList.remove('hidden');
+            overlayLote.classList.add('modo-lote'); // Ativa a janela tracejada exclusiva do CSS
+        }
     } else {
         titulo.innerText = contexto === 'perfil' ? "Foto de Perfil" : "Foto da Evidência";
-        if (overlayLote) overlayLote.classList.add('hidden');
+        if (overlayLote) {
+            overlayLote.classList.add('hidden');
+            overlayLote.classList.remove('modo-lote'); // Desativa para não poluir fotos de evidência
+        }
     }
 
     modal.classList.remove('hidden');
@@ -278,8 +284,10 @@ window.abrirCameraInApp = function(contexto) {
 window.fecharCameraInApp = function() {
     const modal = document.getElementById('modal-camera');
     const video = document.getElementById('video-stream');
+    const overlayLote = document.getElementById('camera-overlay-lote');
     
     if (modal) modal.classList.add('hidden');
+    if (overlayLote) overlayLote.classList.remove('modo-lote'); // Remove preventivamente no fechamento
     
     if (localVideoStream) {
         localVideoStream.getTracks().forEach(track => track.stop());
@@ -352,40 +360,58 @@ function processarOcrLote(rawBase64) {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
             })
             .then(({ data: { text } }) => {
-                const linhas = text.split('\n')
-                    .map(linha => {
-                        let l = linha.trim().toUpperCase();
-                        l = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
-
-                        if (l.startsWith("LS")) {
-                            if (l.charAt(2) === 'E' || l.charAt(2) === 'B') {
-                                l = 'LSP' + l.substring(3);
-                            }
-                            let prefixo = l.substring(0, 3);
-                            let corpo = l.substring(3);
-                            
-                            corpo = corpo.replace(/Z/g, '2')
-                                         .replace(/O/g, '0')
-                                         .replace(/S/g, '5')
-                                         .replace(/I/g, '1')
-                                         .replace(/T/g, '7')
-                                         .replace(/A/g, '41')
-                                         .replace(/L/g, '77');
-                            
-                            l = prefixo + corpo;
-                        }
-                        return l;
-                    })
+                // Prepara o texto bruto separando linhas vazias e higienizando espaços espúrios
+                let textoSeparado = text.split('\n')
+                    .map(l => l.trim().toUpperCase())
                     .filter(l => l.length > 2);
-                
-                if (linhas.length >= 2) {
-                    document.getElementById('prod-lote-sup').value = linhas[0];
-                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhas[1]);
-                } else if (linhas.length === 1) {
-                    document.getElementById('prod-lote-sup').value = linhas[0];
-                    document.getElementById('prod-lote-inf').value = "";
+
+                let linhaSuperiorIdentificada = "";
+                let linhaInferiorIdentificada = "";
+
+                // Varre o bloco lido procurando encaixar cada fragmento no padrão Bimbo
+                textoSeparado.forEach(linha => {
+                    let tratada = linha.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
+                    
+                    // Condição 1: É a linha superior (Contém indicativos de validade ou códigos de forno/data)
+                    if (tratada.includes("VAL") || tratada.includes("DR") || tratada.includes("SET") || tratada.includes("VENC")) {
+                        linhaSuperiorIdentificada = tratada;
+                    } 
+                    // Condição 2: É a linha inferior de rastreio de lote (Começa com LS, LSP ou um padrão numérico extenso)
+                    else if (tratada.startsWith("LS") || tratada.startsWith("15") || tratada.length > 10) {
+                        
+                        // Ajuste ortográfico estrutural para mitigar erros comuns do OCR em fontes pontilhadas
+                        if (tratada.startsWith("LS") && (tratada.charAt(2) === 'E' || tratada.charAt(2) === 'B')) {
+                            tratada = 'LSP' + tratada.substring(3);
+                        }
+                        
+                        let prefixo = tratada.substring(0, 3);
+                        let corpo = tratada.substring(3);
+                        
+                        // Corrige falsos positivos textuais apenas no bloco estritamente numérico do lote inferior
+                        corpo = corpo.replace(/Z/g, '2')
+                                     .replace(/O/g, '0')
+                                     .replace(/S/g, '5')
+                                     .replace(/I/g, '1')
+                                     .replace(/T/g, '7')
+                                     .replace(/A/g, '41')
+                                     .replace(/L/g, '77');
+                        
+                        linhaInferiorIdentificada = prefixo + corpo;
+                    }
+                });
+
+                // Se a triagem inteligente falhou, recorre ao método de fallback por índice para não travar
+                if (!linhaSuperiorIdentificada && !linhaInferiorIdentificada && textoSeparado.length > 0) {
+                    linhaSuperiorIdentificada = textoSeparado[0] || "";
+                    linhaInferiorIdentificada = textoSeparado[1] || "";
+                }
+
+                // Descarrega as informações lapidadas direto nos inputs correspondentes
+                if (linhaSuperiorIdentificada || linhaInferiorIdentificada) {
+                    document.getElementById('prod-lote-sup').value = linhaSuperiorIdentificada;
+                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferiorIdentificada);
                 } else {
-                    alert("⚠️ Não foi possível ler as linhas da datadora de forma clara. Digite manualmente.");
+                    alert("⚠️ Não foi possível isolar as linhas da datadora de forma clara. Digite manualmente.");
                 }
             })
             .catch(err => {
@@ -433,8 +459,6 @@ function processarFotoPerfil(rawBase64) {
         }
     });
 }
-
-
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
