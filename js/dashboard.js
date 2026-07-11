@@ -323,7 +323,7 @@ window.fecharCameraInApp = function() {
 };
 
 /**
- * Captura o frame atual do elemento <video> sem alterações de tamanho
+ * Captura o frame atual do elemento <video> sem alterações de tamanho corrompendo fluxos
  */
 function dispararCapturaFoto() {
     const video = document.getElementById('video-stream');
@@ -338,7 +338,7 @@ function dispararCapturaFoto() {
     
     const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
     
-    // Guardamos o contexto numa constante ANTES de fechar a câmera
+    // IMPORTANTE: Salva a rota do fluxo antes que o fecharCamera limpe a variável global
     const contextoParaProcessar = contextoCameraAtual;
     
     fecharCameraInApp();
@@ -353,12 +353,11 @@ function dispararCapturaFoto() {
 }
 
 /**
- * Processamento OCR Avançado para Lotes com Recorte de Segurança Integrado
+ * Processamento OCR Avançado para Lotes com Recorte de Segurança Centralizado
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    // Mantemos uma resolução boa para não perder nitidez dos caracteres pequenos da datadora
     préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
@@ -366,42 +365,39 @@ function processarOcrLote(rawBase64) {
             const ctx = canvas.getContext('2d');
             
             // =======================================================
-            // RECORTE DA ÁREA CENTRAL (VISOR DO LOTE)
+            // CORTAR APENAS A ÁREA DO VISOR CENTRAL (75% Largura, 35% Altura)
             // =======================================================
-            // Definimos uma janela focada no centro (60% da largura, 30% da altura)
-            const corteLargura = Math.floor(img.width * 0.60);
-            const corteAltura = Math.floor(img.height * 0.30);
+            const corteLargura = Math.floor(img.width * 0.75);
+            const corteAltura = Math.floor(img.height * 0.35);
             const corteX = Math.floor((img.width - corteLargura) / 2);
             const corteY = Math.floor((img.height - corteAltura) / 2);
 
-            // Redimensionamos o canvas do OCR estritamente para o tamanho do miolo recortado
             canvas.width = corteLargura;
             canvas.height = corteAltura;
             
-            // Desenha apenas o pedaço do centro da imagem original no canvas
             ctx.drawImage(
                 img, 
-                corteX, corteY, corteLargura, corteAltura, // Origem
-                0, 0, corteLargura, corteAltura           // Destino
+                corteX, corteY, corteLargura, corteAltura, 
+                0, 0, corteLargura, corteAltura           
             );
             
             // =======================================================
-            // FILTRO DE TRATAMENTO DE IMAGEM (BINARIZAÇÃO)
+            // FILTRO DIGITAL DE BINARIZAÇÃO PRETO E BRANCO
             // =======================================================
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
             for (let i = 0; i < data.length; i += 4) {
                 let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                // Ajustado o limite para 135 para evitar que caracteres pontilhados sumam
-                let pixelFinal = (cinza < 135) ? 0 : 255; 
+                // Limiar 130 preserva o contorno de caracteres pontilhados de datadoras industriais
+                let pixelFinal = (cinza < 130) ? 0 : 255; 
                 data[i]     = pixelFinal;
                 data[i + 1] = pixelFinal;
                 data[i + 2] = pixelFinal;
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Envia o canvas tratado e recortado para o Tesseract
+            // Executa o Tesseract no Canvas isolado e tratado
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENCQO '
             })
@@ -465,6 +461,43 @@ function processarOcrLote(rawBase64) {
         img.src = base64Comprimido;
     });
 }
+
+function CalculeLoteFormatado(textoStr) {
+    return textoStr;
+}
+
+/**
+ * Trata e insere a foto capturada como evidência (Tela Cheia)
+ */
+function processarFotoEvidencia(rawBase64) {
+    if (!rawBase64) return;
+    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
+        const previewElement = document.getElementById('prod-foto-preview');
+        if (previewElement) {
+            previewElement.src = base64Comprimido;
+            previewElement.dataset.base64 = base64Comprimido; 
+        }
+        const container = document.getElementById('prod-preview-container');
+        if (container) {
+            container.classList.remove('hidden');
+        }
+    });
+}
+
+/**
+ * Trata e insere a foto dentro do formulário do Modal de Perfil
+ */
+function processarFotoPerfil(rawBase64) {
+    if (!rawBase64) return;
+    préComprimirImagemBase64(rawBase64, 400, function(base64Comprimido) {
+        const perfilPreview = document.getElementById('edit-perfil-preview');
+        if (perfilPreview) {
+            perfilPreview.src = base64Comprimido;
+            perfilPreview.dataset.base64 = base64Comprimido;
+        }
+    });
+}
+
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
