@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grupo Bimbo - QA Segregados</title>
-<link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     
     <link rel="manifest" href="manifest.json">
 
@@ -19,9 +19,7 @@
     }
     </style>
 
-  <link rel="stylesheet" href="mobile.css">
-
-
+    <link rel="stylesheet" href="mobile.css">
 </head>
 <body class="bg-bimbo-wallpaper flex items-center justify-center min-h-screen p-4">
 
@@ -38,6 +36,7 @@
             <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Gestão de Qualidade e Rastreabilidade</p>
         </div>
 
+        <!-- SEÇÃO DE LOGIN -->
         <div id="login-section">
             <h2 class="text-sm font-bold text-slate-400 mb-4 text-center uppercase tracking-wider border-b pb-2">Acesso ao Sistema</h2>
             
@@ -57,9 +56,9 @@
                 
                 <div>
                     <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Senha</label>
-                    <div class="relative">
-                        <input type="password" id="login-senha" placeholder="••••••••" required class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:outline-none transition text-sm pr-10">
-                        <button type="button" onclick="toggleVisibilidadeSenha('login-senha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold">
+                    <div class="relative w-full">
+                        <input type="password" id="login-senha" placeholder="••••••••" required class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:outline-none transition text-sm pr-12">
+                        <button type="button" onclick="toggleVisibilidadeSenha('login-senha', this)" class="absolute right-0 top-0 h-full !w-12 !min-height-[initial] flex items-center justify-center text-slate-400 hover:text-slate-600 text-sm font-bold z-10 bg-transparent border-none">
                             👁️
                         </button>
                     </div>
@@ -74,6 +73,7 @@
             </p>
         </div>
 
+        <!-- SEÇÃO DE CADASTRO -->
         <div id="cadastro-section" class="hidden">
             <h2 class="text-sm font-bold text-slate-400 mb-4 text-center uppercase tracking-wider border-b pb-2">Solicitar Cadastro</h2>
             <form id="cadastro-form" class="space-y-3">
@@ -144,16 +144,16 @@
                 <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 space-y-2">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-0.5">Definir Senha</label>
-                        <div class="relative">
+                        <div class="relative w-full">
                             <input type="password" id="cad-senha" required placeholder="Defina sua Senha" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none pr-10">
-                            <button type="button" onclick="toggleVisibilidadeSenha('cad-senha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold">👁️</button>
+                            <button type="button" onclick="toggleVisibilidadeSenha('cad-senha', this)" class="absolute right-0 top-0 h-full !w-12 !min-height-[initial] flex items-center justify-center text-slate-400 hover:text-slate-600 text-sm font-bold z-10 bg-transparent border-none">👁️</button>
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-0.5">Confirmar Senha</label>
-                        <div class="relative">
+                        <div class="relative w-full">
                             <input type="password" id="cad-senha-confirma" required placeholder="Confirme sua Senha" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none pr-10">
-                            <button type="button" onclick="toggleVisibilidadeSenha('cad-senha-confirma', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold">👁️</button>
+                            <button type="button" onclick="toggleVisibilidadeSenha('cad-senha-confirma', this)" class="absolute right-0 top-0 h-full !w-12 !min-height-[initial] flex items-center justify-center text-slate-400 hover:text-slate-600 text-sm font-bold z-10 bg-transparent border-none">👁️</button>
                         </div>
                     </div>
                     <p class="text-[10px] text-slate-500 font-medium leading-tight">A senha deve conter: mínimo de 8 caracteres, letras Maiúsculas, Minúsculas, números e pelo menos 1 caracter especial.</p>
@@ -172,7 +172,8 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="js/config.js"></script> <script src="js/auth.js"></script>
+<script src="js/config.js"></script> 
+<script src="js/auth.js"></script>
 
 <script>
   if ('serviceWorker' in navigator) {
