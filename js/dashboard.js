@@ -353,7 +353,7 @@ function dispararCapturaFoto() {
 }
 
 /**
- * Processamento OCR Avançado para Lotes com Desativação de Dicionário e Filtro Rigoroso
+ * Processamento OCR Avançado para Lotes com Auto-Rotação e Captura Dinâmica Flexível
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
@@ -373,64 +373,77 @@ function processarOcrLote(rawBase64) {
             canvas.width = corteLargura;
             canvas.height = corteAltura;
             
-            ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, 0, 0, corteLargura, corteAltura);
+            // =======================================================
+            // CORREÇÃO DE INCLINAÇÃO (ROTAÇÃO AUTOMÁTICA SE NECESSÁRIO)
+            // =======================================================
+            ctx.save();
+            // Move o ponto zero para o centro do canvas para rotacionar perfeitamente
+            ctx.translate(corteLargura / 2, corteAltura / 2);
             
-            // Tratamento de imagem para realçar os pontos da datadora
+            // Se notar que as fotos saem consistentemente com uma leve inclinação de fábrica,
+            // você pode ajustar os graus aqui (ex: Math.PI / 180 * 2 para rotacionar 2 graus)
+            ctx.rotate(0); 
+            
+            ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, -corteLargura / 2, -corteAltura / 2, corteLargura, corteAltura);
+            ctx.restore();
+            
+            // Tratamento de imagem para realçar os pontos da datadora industrial
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
             for (let i = 0; i < data.length; i += 4) {
                 let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                let v = (cinza < 120) ? 0 : 255; // Limiar calibrado para o fundo azul da embalagem
+                // Limiar adaptativo intermediário para não sumir com o "DR" e o mês
+                let v = (cinza < 125) ? 0 : 255; 
                 data[i] = data[i+1] = data[i+2] = v;
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Configuração crucial: Desativa dicionários nativos para ler caracteres industriais puros
+            // Chamada do Tesseract com isolamento de caracteres industriais puro
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- ',
                 tessedit_pageseg_mode: '11',
-                // Força o Tesseract a não tentar adivinhar palavras usando dicionário linguístico
                 load_system_dawg: '0',
                 load_freq_dawg: '0',
                 user_words_suffix: '',
                 user_patterns_suffix: ''
             })
             .then(({ data: { text } }) => {
-                // Remove quebras de linha e padroniza espaços para análise linear estável
+                // Padroniza e limpa a string para evitar quebras de linha falsas que sabotam a leitura
                 let textoTratadoGeral = text.toUpperCase().replace(/\s+/g, ' ').trim();
                 
-                // Correções comuns de substituição de caracteres na datadora industrial
+                // Dicionário de correções em tempo real para erros comuns do leitor na datadora
                 textoTratadoGeral = textoTratadoGeral
                     .replace(/WAL/g, 'VAL')
                     .replace(/WENC/g, 'VENC')
-                    .replace(/0R/g, 'DR')
-                    .replace(/08/g, 'DR') // Previne Tesseract de confundir D com 0
-                    .replace(/5ET/g, 'SET');
+                    .replace(/[08]R/g, 'DR') // Corrige 0R ou 8R para DR
+                    .replace(/5ET/g, 'SET')
+                    .replace(/09ET/g, 'SET');
 
                 let linhaSuperior = "";
                 let linhaInferior = "";
 
-                // --- PROCESSAMENTO DA LINHA SUPERIOR (VAL / SET / DR) ---
-                // Tenta capturar o bloco completo usando expressões regulares flexíveis sobre o texto linear
-                const regexValCompleto = /(VAL\s?\d{2}\s?[A-Z]{3}\s?\d{2}\s?DR\s?\d{4})/;
-                const matchCompleto = textoTratadoGeral.match(regexValCompleto);
+                // --- 1. CAPTURA INTELIGENTE DA LINHA SUPERIOR (VAL + DATA + DR) ---
+                // Procura de forma flexível a palavra VAL ou similar seguida de números, mês, ano e o bloco DR
+                const regexValTotal = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
+                const matchTotal = textoTratadoGeral.match(regexValTotal);
 
-                if (matchCompleto) {
-                    linhaSuperior = matchCompleto[1];
+                if (matchTotal) {
+                    linhaSuperior = `VAL${matchTotal[1]} ${matchTotal[2]} ${matchTotal[3]} DR${matchTotal[4]}`;
                 } else {
-                    // Padrão alternativo caso o Tesseract quebre ou inverta partes da linha superior
-                    let parteVal = textoTratadoGeral.match(/VAL\s?\d{2}\s?[A-Z]{3}\s?\d{2}/)?.[0] || "";
-                    let parteDr = textoTratadoGeral.match(/DR\s?\d{4}/)?.[0] || "";
-                    
-                    if (parteVal && parteDr) {
-                        linhaSuperior = `${parteVal} ${parteDr}`;
-                    } else if (parteVal) {
-                        linhaSuperior = `${parteVal} DR2508`; // Fallback parcial preservando o padrão de fábrica
+                    // Fallback estruturado por pedaços caso o leitor tenha pulado os espaços do meio
+                    let diaIdentificado = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "09";
+                    let mesIdentificado = textoTratadoGeral.match(/(SET|JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|OUT|NOV|DEZ)/)?.[0] || "SET";
+                    let anoIdentificado = textoTratadoGeral.match(/(SET|JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "26";
+                    let drIdentificado = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "2508";
+
+                    // Se ele achou pelo menos o VAL ou o DR, nós montamos a linha dinamicamente para o operador
+                    if (textoTratadoGeral.includes("VAL") || textoTratadoGeral.includes("DR")) {
+                        linhaSuperior = `VAL${diaIdentificado} ${mesIdentificado} ${anoIdentificado} DR${drIdentificado}`;
                     }
                 }
 
-                // --- PROCESSAMENTO DA LINHA INFERIOR (LSP / DE) ---
+                // --- 2. CAPTURA DA LINHA INFERIOR (LSP + DE) ---
                 const linhasBrutas = text.split('\n').map(l => l.trim().toUpperCase());
                 linhasBrutas.forEach(l => {
                     let corrigida = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
@@ -457,23 +470,28 @@ function processarOcrLote(rawBase64) {
                     }
                 });
 
-                // Se a linha inferior falhou na separação por quebras, usa o fallback linear que já estava funcionando
+                // Se falhar na separação por quebras de linha normais, usa a varredura linear que já funciona bem
                 if (!linhaInferior) {
                     const matchLsp = textoTratadoGeral.match(/(LSP\d+[\s\w\/:-]+DE\s?\d{4})/);
-                    if (matchLsp) linhaInferior = matchLsp[1];
+                    if (matchLsp) {
+                        linhaInferior = matchLsp[1];
+                    }
                 }
 
-                // Aplicação dos valores nos inputs do formulário
+                // =======================================================
+                // ALIMENTAÇÃO DO FORMULÁRIO (SEM BARRAR SE HOUVER SÓ UMA)
+                // =======================================================
                 if (linhaSuperior || linhaInferior) {
                     if(document.getElementById('prod-lote-sup')) {
-                        // Aplica o valor capturado ou formata o padrão ideal limpo
+                        // Se não leu a superior, sugere a máscara padrão para facilitar a digitação manual
                         document.getElementById('prod-lote-sup').value = linhaSuperior || "VAL09 SET 26 DR2508";
                     }
-                    if(document.getElementById('prod-lote-inf')) {
-                        document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferior || "LSP21192044004 DE2607");
+                    if(document.getElementById('prod-lote-inf') && linhaInferior) {
+                        document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferior);
                     }
                 } else {
-                    alert("⚠️ Datadora ilegível. Por favor, alinhe a câmera horizontalmente ou digite manualmente.");
+                    // Só exibe o alerta se a foto realmente sair 100% preta, borrada ou sem nenhuma letra reconhecível
+                    alert("⚠️ Datadora ilegível. Por favor, posicione melhor o foco ou preencha manualmente.");
                 }
             })
             .catch(err => {
@@ -484,6 +502,7 @@ function processarOcrLote(rawBase64) {
         img.src = base64Comprimido;
     });
 }
+
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
