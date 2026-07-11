@@ -617,9 +617,85 @@ function carregarTabelaArquivo(segregados) {
 window.gerenciarEscolhaImpressao = function(id) {
     const escolha = confirm("Deseja imprimir direto na impressora ZEBRA via rede?\n\n[OK] para Zebra (Rede)\n[Cancelar] para Impressão Padrão (Navegador)");
     if (escolha) {
-        window.imprimirZebraRede(id);
+        window.gerenciarImpressorasZebra(id);
     } else {
         window.gerarEtiquetaProduto(id);
+    }
+};
+
+// NOVO: Gerenciador de Equipamentos Zebra (Salvar, Listar e Excluir)
+window.gerenciarImpressorasZebra = function(id) {
+    // Carrega a lista de impressoras salvas no localStorage
+    let impressoras = JSON.parse(localStorage.getItem('zebras_cadastradas')) || [];
+    
+    let mensagem = "Selecione uma impressora digitando o NÚMERO correspondente:\n\n";
+    
+    if (impressoras.length === 0) {
+        mensagem += "[Nenhum equipamento cadastrado ainda]\n";
+    } else {
+        impressoras.forEach((imp, index) => {
+            mensagem += `${index + 1} - ${imp.nome} (${imp.ip})\n`;
+        });
+    }
+    
+    mensagem += "\nOutras opções:\n";
+    mensagem += "N - Cadastrar Nova Impressora\n";
+    if (impressoras.length > 0) {
+        mensagem += "E - Excluir uma Impressora Salva\n";
+    }
+    mensagem += "C - Cancelar";
+
+    const opcao = prompt(mensagem);
+    
+    if (!opcao) return; // Cancelou
+    const opcaoLimpa = opcao.trim().toUpperCase();
+
+    // Opção: Cadastrar Nova
+    if (opcaoLimpa === 'N') {
+        const nome = prompt("Digite um nome amigável para a Zebra (Ex: Almoxarifado, Linha 2):");
+        if (!nome) return;
+        const ip = prompt("Digite o endereço IP da impressora Zebra:", "192.168.1.150");
+        if (!ip) return;
+
+        impressoras.push({ nome: nome.trim(), ip: ip.trim() });
+        localStorage.setItem('zebras_cadastradas', JSON.stringify(impressoras));
+        alert("Impressora cadastrada com sucesso!");
+        
+        // Reinicia o fluxo para o usuário poder usar a impressora que acabou de criar
+        window.gerenciarImpressorasZebra(id);
+        return;
+    }
+
+    // Opção: Excluir Aparelho
+    if (opcaoLimpa === 'E' && impressoras.length > 0) {
+        let msgExcluir = "Digite o número da impressora que deseja REMOVER:\n\n";
+        impressoras.forEach((imp, index) => {
+            msgExcluir += `${index + 1} - ${imp.nome} (${imp.ip})\n`;
+        });
+        
+        const numExcluir = parseInt(prompt(msgExcluir));
+        if (isNaN(numExcluir) || numExcluir < 1 || numExcluir > impressoras.length) {
+            alert("Número inválido. Operação cancelada.");
+            return;
+        }
+
+        const removida = impressoras.splice(numExcluir - 1, 1);
+        localStorage.setItem('zebras_cadastradas', JSON.stringify(impressoras));
+        alert(`A impressora "${removida[0].nome}" foi excluída.`);
+        
+        window.gerenciarImpressorasZebra(id);
+        return;
+    }
+
+    if (opcaoLimpa === 'C') return;
+
+    // Opção: Selecionar Impressora Existente da Lista
+    const indiceSelecionado = parseInt(opcaoLimpa) - 1;
+    if (!isNaN(indiceSelecionado) && indiceSelecionado >= 0 && indiceSelecionado < impressoras.length) {
+        const ipEscolhido = impressoras[indiceSelecionado].ip;
+        window.imprimirZebraRede(id, ipEscolhido);
+    } else {
+        alert("Opção inválida.");
     }
 };
 
@@ -700,9 +776,8 @@ window.gerarEtiquetaProduto = function(id) {
     });
 };
 
-// OPÇÃO 2: ENVIAR PARA ZEBRA (Comando direto via IP da Rede)
-window.imprimirZebraRede = function(id) {
-    const ipImpressora = prompt("Digite o endereço IP da impressora Zebra na rede:", "192.168.1.150");
+// OPÇÃO 2: ENVIAR PARA ZEBRA (Comando direto via IP da Rede - Atualizado para receber o IP dinâmico)
+window.imprimirZebraRede = function(id, ipImpressora) {
     if (!ipImpressora) return;
 
     db.ref('segregados/' + id).once('value').then((snapshot) => {
@@ -714,7 +789,6 @@ window.imprimirZebraRede = function(id) {
 
         const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
 
-        // Correção do comando nativo ^BQ adicionando o parâmetro de correção 'QA,' antes da URL
         const comandoZPL = `
 ^XA
 ^CI28
@@ -743,7 +817,6 @@ window.imprimirZebraRede = function(id) {
 ^XZ
         `;
 
-        // Disparo direto via rede (Porta padrão 9100)
         fetch(`http://${ipImpressora}:9100`, {
             method: 'POST',
             body: comandoZPL,
@@ -754,7 +827,7 @@ window.imprimirZebraRede = function(id) {
         })
         .catch((err) => {
             console.error("Erro ao conectar na Zebra:", err);
-            alert("Não foi possível alcançar a impressora Zebra. Verifique o IP digitado e a sua conexão de rede.");
+            alert("Não foi possível alcançar a impressora Zebra. Verifique o IP cadastrado e a sua conexão de rede.");
         });
 
     }).catch(err => {
@@ -763,6 +836,9 @@ window.imprimirZebraRede = function(id) {
     });
 };
 
+// ==========================================
+// FUNÇÕES DE INTERAÇÃO (FILTROS E MODAL)
+// ==========================================
 window.filtrarHistoricoTempo = function(periodo, botaoClicado) {
     filtroTempoAtivo = periodo;
     
@@ -791,6 +867,7 @@ window.fecharZoomFoto = function() {
     const modal = document.getElementById('modal-zoom-foto');
     if(modal) modal.classList.add('hidden');
 }
+
 
 // ==========================================
 // 8. GERENCIAMENTO DE COLABORADORES (REALTIME NUVEM)
