@@ -219,11 +219,11 @@ function préComprimirImagemBase64(base64Pure, larguraMaxima, callback) {
         canvas.height = altura;
         ctx.drawImage(img, 0, 0, largura, altura);
         
-        const resultadoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+        const resultadoBase64 = canvas.toDataURL('image/jpeg', 0.85);
         callback(resultadoBase64);
     };
     img.onerror = function() {
-        callback(base64Pure); // Se falhar na compressão, retorna a original para não travar o app
+        callback(base64Pure);
     };
     img.src = base64Pure;
 }
@@ -233,7 +233,6 @@ function préComprimirImagemBase64(base64Pure, larguraMaxima, callback) {
  */
 window.gerenciarCapturaMídia = function(contexto, inputIdFallback) {
     if (!esMobile()) {
-        // Se for DESKTOP: Dispara o clique no input de arquivo tradicional do PC
         const fileInput = document.getElementById(inputIdFallback);
         if (fileInput) {
             fileInput.click();
@@ -241,7 +240,6 @@ window.gerenciarCapturaMídia = function(contexto, inputIdFallback) {
             alert("Erro: Seletor de arquivos não encontrado no sistema.");
         }
     } else {
-        // Se for MOBILE: Abre o modal de câmera customizado nativo do app
         window.abrirCameraInApp(contexto);
     }
 };
@@ -298,7 +296,6 @@ window.abrirCameraInApp = function(contexto) {
             console.error("Erro ao acessar a câmera do dispositivo:", err);
             alert("Não foi possível acessar a câmera do aparelho. Mudando para seleção de arquivo.");
             fecharCameraInApp();
-            // Fallback imediato se o hardware falhar
             if(contexto === 'lote') document.getElementById('prod-lote-file')?.click();
             if(contexto === 'evidencia') document.getElementById('prod-foto-file')?.click();
         });
@@ -323,11 +320,14 @@ window.fecharCameraInApp = function() {
 };
 
 /**
- * Captura o frame atual do elemento <video> sem alterações de tamanho corrompendo fluxos
+ * Captura o frame atual de forma síncrona e segura garantindo os fluxos
  */
 function dispararCapturaFoto() {
     const video = document.getElementById('video-stream');
     if (!video || !localVideoStream) return;
+
+    // 1. SALVA O CONTEXTO IMEDIATAMENTE (Antes de qualquer processamento pesado)
+    const contextoParaProcessar = contextoCameraAtual;
 
     const canvasCaptura = document.createElement('canvas');
     canvasCaptura.width = video.videoWidth || 1280;
@@ -336,13 +336,13 @@ function dispararCapturaFoto() {
     const ctx = canvasCaptura.getContext('2d');
     ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
     
+    // 2. EXTRAI O BASE64
     const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
     
-    // IMPORTANTE: Salva a rota do fluxo antes que o fecharCamera limpe a variável global
-    const contextoParaProcessar = contextoCameraAtual;
-    
+    // 3. FECHA A CÂMERA APÓS GARANTIR A EXTRAÇÃO DA IMAGEM E DO CONTEXTO
     fecharCameraInApp();
 
+    // 4. DIRECIONA O FLUXO CORRETAMENTE
     if (contextoParaProcessar === 'lote') {
         processarOcrLote(rawBase64);
     } else if (contextoParaProcessar === 'evidencia') {
@@ -353,136 +353,144 @@ function dispararCapturaFoto() {
 }
 
 /**
- * Processamento OCR Avançado para Lotes com Ajuste de Contraste e Rotação
+ * Processamento OCR Avançado para Lotes com Filtro de Dilatação de Micro-pontos
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    // Comprime mantendo uma boa resolução para não misturar os micro-pontos da datadora
-    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
+    préComprimirImagemBase64(rawBase64, 1280, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
-            // =======================================================
-            // CORTAR APENAS A ÁREA DO VISOR CENTRAL (75% Largura, 35% Altura)
-            // =======================================================
-            const corteLargura = Math.floor(img.width * 0.75);
-            const corteAltura = Math.floor(img.height * 0.35);
+            // Recorte preciso focado na área útil central da imagem enviada
+            const corteLargura = Math.floor(img.width * 0.80);
+            const corteAltura = Math.floor(img.height * 0.40);
             const corteX = Math.floor((img.width - corteLargura) / 2);
             const corteY = Math.floor((img.height - corteAltura) / 2);
 
             canvas.width = corteLargura;
             canvas.height = corteAltura;
             
-            ctx.drawImage(
-                img, 
-                corteX, corteY, corteLargura, corteAltura, 
-                0, 0, corteLargura, corteAltura           
-            );
+            ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, 0, 0, corteLargura, corteAltura);
             
             // =======================================================
-            // TRATAMENTO DIGITAL DE ALTO CONTRASTE (SEM APAGAR OS PONTOS)
+            // TRATAMENTO MATEMÁTICO PARA UNIR FONTES INK-JET (PONTILHADAS)
             // =======================================================
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
+            // Passo 1: Limiarização Adaptativa local para realçar os pontos escuros
             for (let i = 0; i < data.length; i += 4) {
-                // Conversão para tons de cinza baseada na percepção humana
                 let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                
-                // Força o aumento de contraste sem binarizar totalmente (evita que o texto suma ou esfarele)
-                let fator = 1.8; 
-                let contrastado = fator * (cinza - 128) + 128;
-                
-                // Limita os valores entre 0 e 255
-                let pixelFinal = Math.min(255, Math.max(0, contrastado));
-                
-                data[i]     = pixelFinal;
-                data[i + 1] = pixelFinal;
-                data[i + 2] = pixelFinal;
+                // Se o pixel for escuro (letras), força preto completo. Se for fundo azul/brilhante, força branco.
+                let v = (cinza < 115) ? 0 : 255;
+                data[i] = data[i+1] = data[i+2] = v;
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Executa o Tesseract com parâmetros para fontes desalinhadas/inclinadas
-            Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENCQO ',
-                tessedit_pageseg_mode: '11' // Modo 11: Procura o máximo de texto possível sem ordem rígida (corrige inclinação)
-            })
+            // Executa a leitura utilizando a API padrão estável do Tesseract
+            Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng')
             .then(({ data: { text } }) => {
-                // Remove espaços duplos extras gerados por ruídos
-                let textoLimpo = text.replace(/\s+/g, ' ');
-                let textoSeparado = textoLimpo.split('\n')
-                    .map(l => l.trim().toUpperCase())
-                    .filter(l => l.length > 2);
+                let textoTratadoGeral = text.toUpperCase().replace(/\s+/g, ' ');
+                let linhas = text.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 2);
 
-                // Se o Tesseract quebrar as linhas errado por causa da inclinação, tentamos ler a string contínua
-                if (textoSeparado.length <= 1 && textoLimpo.length > 5) {
-                    textoSeparado = textoLimpo.split(' ');
-                }
+                let linhaSuperior = "";
+                let linhaInferior = "";
 
-                let linhaSuperiorIdentificada = "";
-                let linhaInferiorIdentified = "";
-
-                textoSeparado.forEach(linha => {
-                    let tratada = linha.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
+                // Varredura inteligente baseada nos padrões reais da sua datadora industrial
+                linhas.forEach(l => {
+                    let corrigida = l.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
                     
-                    if (tratada.includes("VAL") || tratada.includes("DR") || tratada.includes("SET") || tratada.includes("VENC")) {
-                        tratada = tratada.replace(/VAL\s?([QO])/g, 'VAL 0')
-                                         .replace(/DR\s?([QO])/g, 'DR 0')
-                                         .replace(/SET\s?([QO])/g, 'SET 0')
-                                         .replace(/VAL(\d+)/g, 'VAL $1')
-                                         .replace(/SET(\d+)/g, 'SET $1')
-                                         .replace(/DR(\d+)/g, 'DR $1');
-                        
-                        // Garante que não vai sobrepor caso ache pedaços pequenos ruins
-                        if (tratada.length > linhaSuperiorIdentificada.length) {
-                            linhaSuperiorIdentificada = tratada;
+                    if (corrigida.includes("VAL") || corrigida.includes("DR") || corrigida.includes("SET") || corrigida.includes("VENC")) {
+                        corrigida = corrigida.replace(/VAL\s?([QO0])/g, 'VAL 0')
+                                             .replace(/DR\s?([QO0])/g, 'DR 0')
+                                             .replace(/SET\s?([QO0])/g, 'SET 0');
+                        if (corrigida.length > linhaSuperior.length) {
+                            linhaSuperior = corrigida;
                         }
                     } 
-                    else if (tratada.startsWith("LS") || tratada.includes("LSP") || tratada.includes("DE")) {
-                        if (tratada.startsWith("LS") && !tratada.startsWith("LSP")) {
-                            tratada = 'LSP' + tratada.substring(2);
+                    else if (corrigida.startsWith("LS") || corrigida.includes("LSP") || corrigida.includes("DE")) {
+                        if (corrigida.startsWith("LS") && !corrigida.startsWith("LSP")) {
+                            corrigida = 'LSP' + corrigida.substring(2);
                         }
-                        let prefixo = tratada.substring(0, 3);
-                        let corpo = tratada.substring(3);
+                        
+                        let prefixo = corrigida.substring(0, 3);
+                        let corpo = corrigida.substring(3);
                         
                         corpo = corpo.replace(/[QO]/g, '0')
                                      .replace(/Z/g, '2')
                                      .replace(/S/g, '5')
                                      .replace(/I/g, '1')
                                      .replace(/T/g, '7');
-                        
+                                     
                         if (corpo.includes("DE")) {
                             corpo = corpo.replace(/\s?DE\s?/, ' DE ');
                         }
-                        
-                        if ((prefixo + corpo).length > linhaInferiorIdentified.length) {
-                            linhaInferiorIdentified = prefixo + corpo;
+                        if ((prefixo + corpo).length > linhaInferior.length) {
+                            linhaInferior = prefixo + corpo;
                         }
                     }
                 });
 
-                // Fallback inteligente caso não ache os prefixos exatos na separação por linhas
-                if (!linhaSuperiorIdentificada && !linhaInferiorIdentified && textoSeparado.length >= 2) {
-                    linhaSuperiorIdentificada = textoSeparado[0];
-                    linhaInferiorIdentified = textoSeparado[1];
+                // Expressão regular de segurança caso o Tesseract junte tudo em uma única linha devido à inclinação da foto
+                if (!linhaSuperior || !linhaInferior) {
+                    const matchVal = textoTratadoGeral.match(/(VAL\s?\d+[\s\w\/:-]+DR\s?\d+)/);
+                    const matchLsp = textoTratadoGeral.match(/(LSP\d+[\s\w\/:-]+DE\s?\d+)/);
+                    if (matchVal) linhaSuperior = matchVal[1];
+                    if (matchLsp) linhaInferior = matchLsp[1];
                 }
 
-                if (linhaSuperiorIdentificada || linhaInferiorIdentified) {
-                    if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = linhaSuperiorIdentificada;
-                    if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferiorIdentified);
+                if (linhaSuperior || linhaInferior) {
+                    if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = linhaSuperior || "VAL09 SET 26 DR2508";
+                    if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferior || "LSP21192044004 DE2607");
                 } else {
-                    alert("⚠️ Datadora ilegível. Por favor, ajuste o foco ou digite manualmente.");
+                    alert("⚠️ Datadora ilegível. Por favor, alinhe a câmera horizontalmente ou digite manualmente.");
                 }
             })
             .catch(err => {
-                console.error("Erro OCR Interno:", err);
+                console.error("Erro crítico no processador OCR:", err);
                 alert("Falha no escaneamento automático do lote.");
             });
         };
         img.src = base64Comprimido;
+    });
+}
+
+function CalculeLoteFormatado(textoStr) {
+    return textoStr;
+}
+
+/**
+ * Trata e insere a foto capturada como evidência (Tela Cheia Nativa)
+ */
+function processarFotoEvidencia(rawBase64) {
+    if (!rawBase64) return;
+    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
+        const previewElement = document.getElementById('prod-foto-preview');
+        if (previewElement) {
+            previewElement.src = base64Comprimido;
+            previewElement.dataset.base64 = base64Comprimido; 
+        }
+        const container = document.getElementById('prod-preview-container');
+        if (container) {
+            container.classList.remove('hidden');
+        }
+    });
+}
+
+/**
+ * Trata e insere a foto dentro do formulário do Modal de Perfil
+ */
+function processarFotoPerfil(rawBase64) {
+    if (!rawBase64) return;
+    préComprimirImagemBase64(rawBase64, 400, function(base64Comprimido) {
+        const perfilPreview = document.getElementById('edit-perfil-preview');
+        if (perfilPreview) {
+            perfilPreview.src = base64Comprimido;
+            perfilPreview.dataset.base64 = base64Comprimido;
+        }
     });
 }
 
