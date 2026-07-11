@@ -329,9 +329,12 @@ function dispararCapturaFoto() {
 /**
  * Executa o tratamento de imagem (Binarização) e chama a biblioteca Tesseract OCR
  */
+/**
+ * Executa o tratamento de imagem avançado para fontes pontilhadas (Inkjet) e chama o Tesseract OCR
+ */
 function processarOcrLote(rawBase64) {
-    // Reduz para 700px antes de realizar a análise pesada de OCR
-    préComprimirImagemBase64(rawBase64, 700, function(base64Comprimido) {
+    // Reduz para 800px para manter boa nitidez dos pontos da datadora
+    préComprimirImagemBase64(rawBase64, 800, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.getElementById('ocr-canvas');
@@ -342,76 +345,99 @@ function processarOcrLote(rawBase64) {
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
-            // Filtro de Binarização (Preto e Branco puro) para aumentar assertividade na datadora
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
+            // TRATAMENTO PARA INKJET PONTILHADO (Engrossar os pontos para o OCR ler melhor)
             for (let i = 0; i < data.length; i += 4) {
                 let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                let pixelFinal = (cinza < 135) ? 0 : 255; 
+                
+                let pixelFinal = cinza;
+                if (cinza < 150) { 
+                    pixelFinal = 0; // Engrossa o ponto preto, unindo os jatos de tinta
+                } else {
+                    pixelFinal = 255; // Fundo branco limpo
+                }
+                
                 data[i]     = pixelFinal;
                 data[i + 1] = pixelFinal;
                 data[i + 2] = pixelFinal;
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Inicia o motor do Tesseract
+            // Motor do Tesseract com whitelist calibrada (O e Q inclusos devido ao miolo do número zero)
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENC '
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENCQO '
             })
             .then(({ data: { text } }) => {
-                // Prepara o texto bruto separando linhas vazias e higienizando espaços espúrios
                 let textoSeparado = text.split('\n')
                     .map(l => l.trim().toUpperCase())
                     .filter(l => l.length > 2);
 
                 let linhaSuperiorIdentificada = "";
-                let linhaInferiorIdentificada = "";
+                let linhaInferiorIdentified = "";
 
-                // Varre o bloco lido procurando encaixar cada fragmento no padrão Bimbo
                 textoSeparado.forEach(linha => {
-                    let tratada = linha.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC');
+                    // Substituições preventivas imediatas para padronizar a leitura
+                    let tratada = linha
+                        .replace(/WAL/g, 'VAL')
+                        .replace(/WENC/g, 'VENC');
                     
-                    // Condição 1: É a linha superior (Contém indicativos de validade ou códigos de forno/data)
+                    // 1. Identificação da Linha Superior (Validade / Forno)
                     if (tratada.includes("VAL") || tratada.includes("DR") || tratada.includes("SET") || tratada.includes("VENC")) {
+                        
+                        // Corrige se o zero foi lido como O ou Q (ex: VALO9 ou VALQ9 vira VAL09)
+                        tratada = tratada.replace(/VAL\s?([QO])/g, 'VAL 0')
+                                         .replace(/DR\s?([QO])/g, 'DR 0')
+                                         .replace(/SET\s?([QO])/g, 'SET 0');
+                        
+                        // Garante espaçamento limpo caso venha tudo colado do OCR
+                        tratada = tratada.replace(/VAL(\d+)/g, 'VAL $1')
+                                         .replace(/SET(\d+)/g, 'SET $1')
+                                         .replace(/DR(\d+)/g, 'DR $1');
+
                         linhaSuperiorIdentificada = tratada;
                     } 
-                    // Condição 2: É a linha inferior de rastreio de lote (Começa com LS, LSP ou um padrão numérico extenso)
-                    else if (tratada.startsWith("LS") || tratada.startsWith("15") || tratada.length > 10) {
+                    // 2. Identificação da Linha Inferior (LSP / Rastreabilidade)
+                    else if (tratada.startsWith("LS") || tratada.includes("LSP") || tratada.includes("DE")) {
                         
-                        // Ajuste ortográfico estrutural para mitigar erros comuns do OCR em fontes pontilhadas
-                        if (tratada.startsWith("LS") && (tratada.charAt(2) === 'E' || tratada.charAt(2) === 'B')) {
-                            tratada = 'LSP' + tratada.substring(3);
+                        // Garante o início estrito com LSP
+                        if (tratada.startsWith("LS") && !tratada.startsWith("LSP")) {
+                            tratada = 'LSP' + tratada.substring(2);
                         }
                         
+                        // Divide o prefixo técnico dos dados numéricos pontilhados
                         let prefixo = tratada.substring(0, 3);
                         let corpo = tratada.substring(3);
                         
-                        // Corrige falsos positivos textuais apenas no bloco estritamente numérico do lote inferior
-                        corpo = corpo.replace(/Z/g, '2')
-                                     .replace(/O/g, '0')
+                        // Limpeza profunda de erros comuns na fonte inkjet da linha inferior
+                        corpo = corpo.replace(/[QO]/g, '0') // Transforma o zero com ponto interno em 0
+                                     .replace(/Z/g, '2')
                                      .replace(/S/g, '5')
                                      .replace(/I/g, '1')
-                                     .replace(/T/g, '7')
-                                     .replace(/A/g, '41')
-                                     .replace(/L/g, '77');
+                                     .replace(/T/g, '7');
                         
-                        linhaInferiorIdentificada = prefixo + corpo;
+                        // Trata o termo "DE" (ex: DE2607 vira DE 2607 ou remove letras intrusas no ano)
+                        if (corpo.includes("DE")) {
+                            corpo = corpo.replace(/\s?DE\s?/, ' DE ');
+                        }
+                        
+                        linhaInferiorIdentified = prefixo + corpo;
                     }
                 });
 
-                // Se a triagem inteligente falhou, recorre ao método de fallback por índice para não travar
-                if (!linhaSuperiorIdentificada && !linhaInferiorIdentificada && textoSeparado.length > 0) {
-                    linhaSuperiorIdentificada = textoSeparado[0] || "";
-                    linhaInferiorIdentificada = textoSeparado[1] || "";
+                // Fallback de segurança por ordem de linhas caso os termos chave falhem
+                if (!linhaSuperiorIdentificada && !linhaInferiorIdentified && textoSeparado.length >= 2) {
+                    linhaSuperiorIdentificada = textoSeparado[0];
+                    linhaInferiorIdentified = textoSeparado[1];
                 }
 
-                // Descarrega as informações lapidadas direto nos inputs correspondentes
-                if (linhaSuperiorIdentificada || linhaInferiorIdentificada) {
+                // Distribui os resultados lapidados nos campos da tela do operador
+                if (linhaSuperiorIdentificada || linhaInferiorIdentified) {
                     document.getElementById('prod-lote-sup').value = linhaSuperiorIdentificada;
-                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferiorIdentificada);
+                    document.getElementById('prod-lote-inf').value = CalculeLoteFormatado(linhaInferiorIdentified);
                 } else {
-                    alert("⚠️ Não foi possível isolar as linhas da datadora de forma clara. Digite manualmente.");
+                    alert("⚠️ Não foi possível ler as linhas da datadora de forma clara. Por favor, ajuste o foco ou digite manualmente.");
                 }
             })
             .catch(err => {
@@ -423,42 +449,6 @@ function processarOcrLote(rawBase64) {
     });
 }
 
-function CalculeLoteFormatado(textoStr) {
-    return textoStr;
-}
-
-/**
- * Trata e insere a foto capturada como evidência no formulário principal
- */
-function processarFotoEvidencia(rawBase64) {
-    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
-        const previewElement = document.getElementById('prod-foto-preview');
-        if (previewElement) {
-            previewElement.src = base64Comprimido;
-            // Preserva a string leve em formato DataURL para ser extraída no submit do Firebase
-            previewElement.dataset.base64 = base64Comprimido; 
-        }
-        const container = document.getElementById('prod-preview-container');
-        if (container) {
-            container.classList.remove('hidden');
-        }
-    });
-}
-
-/**
- * Trata e insere a foto dentro do formulário interno do Modal de Perfil
- */
-function processarFotoPerfil(rawBase64) {
-    // Fotos de perfil podem ser menores (400px de largura é excelente para avatares)
-    préComprimirImagemBase64(rawBase64, 400, function(base64Comprimido) {
-        const perfilPreview = document.getElementById('edit-perfil-preview');
-        if (perfilPreview) {
-            perfilPreview.src = base64Comprimido;
-            // Guarda para a função de salvamento do perfil ler
-            perfilPreview.dataset.base64 = base64Comprimido;
-        }
-    });
-}
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
