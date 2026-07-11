@@ -652,7 +652,7 @@ window.gerenciarImpressorasZebra = function(id) {
 
     // Opção: Cadastrar Nova
     if (opcaoLimpa === 'N') {
-        const nome = prompt("Digite um nome amigável para a Zebra (Ex: Almoxarifado, Linha 2):");
+        const nome = prompt("Digite um nome para a impressora Zebra (Ex: Almoxarifado, Linha 2):");
         if (!nome) return;
         const ip = prompt("Digite o endereço IP da impressora Zebra:", "192.168.1.150");
         if (!ip) return;
@@ -708,9 +708,14 @@ window.gerarEtiquetaProduto = function(id) {
             return;
         }
 
-        const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlConsulta)}`;
-        const janelaImpressao = window.open('', '_blank', 'width=400,height=600');
+        // Captura o link completo atual e limpa o nome do arquivo executado
+const urlLimpa = window.location.href.split('?')[0].replace('dashboard.html', '').replace('index.html', '');
+
+// Monta a URL correta preservando as pastas do servidor/GitHub
+const urlConsulta = `${urlLimpa}rastreabilidade.html?id=${item.id}`;
+
+const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlConsulta)}`;
+const janelaImpressao = window.open('', '_blank', 'width=400,height=600');
         
         janelaImpressao.document.write(`
             <html>
