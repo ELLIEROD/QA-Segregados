@@ -93,9 +93,12 @@
                         </div>
                         
                         <div class="flex items-center gap-2">
-                            <!-- MODIFICADO: Dispara diretamente a abertura da câmera in-app -->
-                            <button type="button" onclick="abrirCameraInApp('lote')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition">
-                                📸 <span>Tirar Foto para Escanear Lote</span>
+                            <!-- INPUT DE FALLBACK CORRIGIDO PARA DESKTOP -->
+                            <input type="file" id="prod-lote-file" class="hidden" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ processarOcrLote(e.target.result); }; reader.readAsDataURL(file); }">
+                            
+                            <!-- BOTAO ATUALIZADO COM A FUNÇÃO INTELIGENTE -->
+                            <button type="button" onclick="gerenciarCapturaMídia('lote', 'prod-lote-file')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition">
+                                📸 <span>Escanear Lote (Câmera / Arquivo)</span>
                             </button>
                         </div>
 
@@ -150,8 +153,11 @@
                     <div class="bg-slate-50 p-3 rounded-lg border border-dashed border-slate-300">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">🖼️ Evidência / Foto</label>
                         
-                        <!-- MODIFICADO: Botão estilizado para abrir o fluxo de câmera controlado -->
-                        <button type="button" onclick="abrirCameraInApp('evidencia')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition mb-2">
+                        <!-- INPUT DE FALLBACK CORRIGIDO PARA DESKTOP -->
+                        <input type="file" id="prod-foto-file" class="hidden" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ processarFotoEvidencia(e.target.result); }; reader.readAsDataURL(file); }">
+                        
+                        <!-- BOTAO ATUALIZADO COM A FUNÇÃO INTELIGENTE -->
+                        <button type="button" onclick="gerenciarCapturaMídia('evidencia', 'prod-foto-file')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition mb-2">
                             📸 Capturar Imagem da Evidência
                         </button>
                         
@@ -242,7 +248,12 @@
             <form id="form-editar-perfil" class="space-y-3">
                 <div class="flex flex-col items-center bg-slate-50 p-3 rounded-xl border border-slate-200 mb-2">
                     <img id="edit-perfil-preview" src="https://www.w3schools.com/howto/img_avatar.png" alt="Prévia do perfil" class="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-sm mb-1">
-                    <button type="button" onclick="abrirCameraInApp('perfil')" class="text-[10px] font-bold text-blue-700 uppercase hover:underline bg-transparent border-none cursor-pointer">
+                    
+                    <!-- INPUT DE FALLBACK PARA FOTO DE PERFIL NO PC -->
+                    <input type="file" id="edit-perfil-file" class="hidden" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ processarFotoPerfil(e.target.result); }; reader.readAsDataURL(file); }">
+                    
+                    <!-- BOTAO ATUALIZADO COM A FUNÇÃO INTELIGENTE -->
+                    <button type="button" onclick="gerenciarCapturaMídia('perfil', 'edit-perfil-file')" class="text-[10px] font-bold text-blue-700 uppercase hover:underline bg-transparent border-none cursor-pointer">
                         Alterar Foto
                     </button>
                 </div>
@@ -324,7 +335,7 @@
         </div>
     </div>
 
-    <!-- ADICIONADO: MODAL INTEGRADO DE CÂMERA (STREAM ATIVO DE BAIXO CONSUMO) -->
+    <!-- MODAL INTEGRADO DE CÂMERA -->
     <div id="modal-camera" class="fixed inset-0 bg-slate-950 flex flex-col items-center justify-between p-4 hidden z-50 animate-fade-in">
         <div class="w-full flex justify-between items-center max-w-md border-b border-slate-800 pb-3">
             <h4 id="camera-titulo" class="text-white text-sm font-bold tracking-wide uppercase">Câmera Dispositivo</h4>
@@ -334,8 +345,8 @@
         <div class="relative w-full max-w-md flex-1 my-4 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-slate-800">
             <video id="video-stream" autoplay playsinline muted class="w-full h-full object-cover"></video>
             <!-- Overlay visual para auxiliar no enquadramento do Lote -->
-            <div id="camera-overlay-lote" class="absolute inset-0 border-2 border-dashed border-blue-500/40 m-12 pointer-events-none hidden flex items-center justify-center">
-                <span class="text-[10px] text-blue-400 bg-black/60 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Alinhe o lote aqui</span>
+            <div id="camera-overlay-lote" class="absolute inset-0 pointer-events-none hidden">
+                <span class="uppercase tracking-wider">Alinhe o lote aqui</span>
             </div>
         </div>
 
