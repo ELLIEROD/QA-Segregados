@@ -103,3 +103,49 @@
         padding: 16px !important;
     }
 }
+
+/* ... resto do seu código atual ... */
+
+    /* Ajuste de Modais (Telas cheias) */
+    .modal-content, #modal-zoom-foto > div {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px auto !important;
+        padding: 16px !important;
+    }
+
+    /* ==========================================
+       NOVO: CUSTOMIZAÇÃO DA CAPTURA DE LOTE
+       ========================================== */
+    #camera-overlay-lote {
+        margin: 0 !important;
+        border: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: absolute !important;
+        top: 0; left: 0; width: 100%; height: 100%;
+    }
+
+    #camera-overlay-lote::before {
+        content: "";
+        width: 260px !important;  /* Proporção retangular estreita */
+        height: 80px !important;  /* Próximo a 6x2 cm no mobile */
+        border: 3px dashed #3b82f6 !important; 
+        border-radius: 8px !important;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6) !important; /* Escurece o fundo ao redor */
+        position: absolute !important;
+    }
+
+    #camera-overlay-lote span {
+        position: absolute !important;
+        transform: translateY(-65px) !important; /* Coloca o texto acima do retângulo */
+        background-color: #3b82f6 !important;
+        color: white !important;
+        font-size: 12px !important;
+        font-weight: bold !important;
+        padding: 2px 8px !important;
+        border-radius: 4px !important;
+        white-space: nowrap !important;
+    }
+} /* <--- ESSA CHAVE FECHA A MEDIA QUERY E DEVE CONTINUAR SENDO A ÚLTIMA LINHA DO ARQUIVO */
