@@ -323,87 +323,85 @@ window.fecharCameraInApp = function() {
 };
 
 /**
-/**
- * Captura o frame atual do elemento <video> aplicando corte se for Lote
+ * Captura o frame atual do elemento <video> sem alterações de tamanho
  */
 function dispararCapturaFoto() {
     const video = document.getElementById('video-stream');
     if (!video || !localVideoStream) return;
 
     const canvasCaptura = document.createElement('canvas');
-    const videoLargura = video.videoWidth || 1280;
-    const videoAltura = video.videoHeight || 720;
+    canvasCaptura.width = video.videoWidth || 1280;
+    canvasCaptura.height = video.videoHeight || 720;
     
     const ctx = canvasCaptura.getContext('2d');
-
-    if (contextoCameraAtual === 'lote') {
-        // Define o tamanho do corte centralizado (65% da largura e 25% da altura)
-        // Isso casa perfeitamente com o retângulo limitador visual da tela
-        const corteLargura = Math.floor(videoLargura * 0.65);
-        const corteAltura = Math.floor(videoAltura * 0.25);
-        
-        // Calcula a posição inicial (X, Y) para o corte ficar perfeitamente no centro
-        const corteX = Math.floor((videoLargura - corteLargura) / 2);
-        const corteY = Math.floor((videoAltura - corteAltura) / 2);
-
-        canvasCaptura.width = corteLargura;
-        canvasCaptura.height = corteAltura;
-
-        // Desenha APENAS a região central limitada do visor de lote
-        ctx.drawImage(
-            video, 
-            corteX, corteY, corteLargura, corteAltura, // Origem (Vídeo)
-            0, 0, corteLargura, corteAltura           // Destino (Canvas)
-        );
-    } else {
-        // Para evidência ou perfil, mantém a captura da imagem inteira normalmente
-        canvasCaptura.width = videoLargura;
-        canvasCaptura.height = videoAltura;
-        ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
-    }
+    ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
     
     const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
     
+    // Guardamos o contexto numa constante ANTES de fechar a câmera
+    const contextoParaProcessar = contextoCameraAtual;
+    
     fecharCameraInApp();
 
-    if (contextoCameraAtual === 'lote') {
+    if (contextoParaProcessar === 'lote') {
         processarOcrLote(rawBase64);
-    } else if (contextoCameraAtual === 'evidencia') {
+    } else if (contextoParaProcessar === 'evidencia') {
         processarFotoEvidencia(rawBase64);
-    } else if (contextoCameraAtual === 'perfil') {
+    } else if (contextoParaProcessar === 'perfil') {
         processarFotoPerfil(rawBase64);
     }
 }
 
 /**
- * Processamento OCR Avançado para Lotes
+ * Processamento OCR Avançado para Lotes com Recorte de Segurança Integrado
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    // Como a imagem já vem recortada e menor da câmera, reduzimos o resize do fallback para manter nitidez
-    préComprimirImagemBase64(rawBase64, 600, function(base64Comprimido) {
+    // Mantemos uma resolução boa para não perder nitidez dos caracteres pequenos da datadora
+    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
+            // =======================================================
+            // RECORTE DA ÁREA CENTRAL (VISOR DO LOTE)
+            // =======================================================
+            // Definimos uma janela focada no centro (60% da largura, 30% da altura)
+            const corteLargura = Math.floor(img.width * 0.60);
+            const corteAltura = Math.floor(img.height * 0.30);
+            const corteX = Math.floor((img.width - corteLargura) / 2);
+            const corteY = Math.floor((img.height - corteAltura) / 2);
+
+            // Redimensionamos o canvas do OCR estritamente para o tamanho do miolo recortado
+            canvas.width = corteLargura;
+            canvas.height = corteAltura;
+            
+            // Desenha apenas o pedaço do centro da imagem original no canvas
+            ctx.drawImage(
+                img, 
+                corteX, corteY, corteLargura, corteAltura, // Origem
+                0, 0, corteLargura, corteAltura           // Destino
+            );
+            
+            // =======================================================
+            // FILTRO DE TRATAMENTO DE IMAGEM (BINARIZAÇÃO)
+            // =======================================================
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
-            // Filtro de binarização aprimorado para a área recortada
             for (let i = 0; i < data.length; i += 4) {
                 let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                let pixelFinal = (cinza < 140) ? 0 : 255; // Ajuste fino no limiar de contraste
+                // Ajustado o limite para 135 para evitar que caracteres pontilhados sumam
+                let pixelFinal = (cinza < 135) ? 0 : 255; 
                 data[i]     = pixelFinal;
                 data[i + 1] = pixelFinal;
                 data[i + 2] = pixelFinal;
             }
             ctx.putImageData(imgData, 0, 0);
 
+            // Envia o canvas tratado e recortado para o Tesseract
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENCQO '
             })
@@ -467,7 +465,6 @@ function processarOcrLote(rawBase64) {
         img.src = base64Comprimido;
     });
 }
-
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
