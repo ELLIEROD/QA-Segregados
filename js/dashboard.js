@@ -353,11 +353,12 @@ function dispararCapturaFoto() {
 }
 
 /**
- * Processamento OCR Avançado para Lotes com Recorte de Segurança Centralizado
+ * Processamento OCR Avançado para Lotes com Ajuste de Contraste e Rotação
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
+    // Comprime mantendo uma boa resolução para não misturar os micro-pontos da datadora
     préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
         const img = new Image();
         img.onload = function() {
@@ -382,29 +383,44 @@ function processarOcrLote(rawBase64) {
             );
             
             // =======================================================
-            // FILTRO DIGITAL DE BINARIZAÇÃO PRETO E BRANCO
+            // TRATAMENTO DIGITAL DE ALTO CONTRASTE (SEM APAGAR OS PONTOS)
             // =======================================================
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             
             for (let i = 0; i < data.length; i += 4) {
-                let cinza = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                // Limiar 130 preserva o contorno de caracteres pontilhados de datadoras industriais
-                let pixelFinal = (cinza < 130) ? 0 : 255; 
+                // Conversão para tons de cinza baseada na percepção humana
+                let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                
+                // Força o aumento de contraste sem binarizar totalmente (evita que o texto suma ou esfarele)
+                let fator = 1.8; 
+                let contrastado = fator * (cinza - 128) + 128;
+                
+                // Limita os valores entre 0 e 255
+                let pixelFinal = Math.min(255, Math.max(0, contrastado));
+                
                 data[i]     = pixelFinal;
                 data[i + 1] = pixelFinal;
                 data[i + 2] = pixelFinal;
             }
             ctx.putImageData(imgData, 0, 0);
 
-            // Executa o Tesseract no Canvas isolado e tratado
+            // Executa o Tesseract com parâmetros para fontes desalinhadas/inclinadas
             Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENCQO '
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/:- VALVAL.LOTEFABVENCQO ',
+                tessedit_pageseg_mode: '11' // Modo 11: Procura o máximo de texto possível sem ordem rígida (corrige inclinação)
             })
             .then(({ data: { text } }) => {
-                let textoSeparado = text.split('\n')
+                // Remove espaços duplos extras gerados por ruídos
+                let textoLimpo = text.replace(/\s+/g, ' ');
+                let textoSeparado = textoLimpo.split('\n')
                     .map(l => l.trim().toUpperCase())
                     .filter(l => l.length > 2);
+
+                // Se o Tesseract quebrar as linhas errado por causa da inclinação, tentamos ler a string contínua
+                if (textoSeparado.length <= 1 && textoLimpo.length > 5) {
+                    textoSeparado = textoLimpo.split(' ');
+                }
 
                 let linhaSuperiorIdentificada = "";
                 let linhaInferiorIdentified = "";
@@ -419,7 +435,11 @@ function processarOcrLote(rawBase64) {
                                          .replace(/VAL(\d+)/g, 'VAL $1')
                                          .replace(/SET(\d+)/g, 'SET $1')
                                          .replace(/DR(\d+)/g, 'DR $1');
-                        linhaSuperiorIdentificada = tratada;
+                        
+                        // Garante que não vai sobrepor caso ache pedaços pequenos ruins
+                        if (tratada.length > linhaSuperiorIdentificada.length) {
+                            linhaSuperiorIdentificada = tratada;
+                        }
                     } 
                     else if (tratada.startsWith("LS") || tratada.includes("LSP") || tratada.includes("DE")) {
                         if (tratada.startsWith("LS") && !tratada.startsWith("LSP")) {
@@ -437,10 +457,14 @@ function processarOcrLote(rawBase64) {
                         if (corpo.includes("DE")) {
                             corpo = corpo.replace(/\s?DE\s?/, ' DE ');
                         }
-                        linhaInferiorIdentified = prefixo + corpo;
+                        
+                        if ((prefixo + corpo).length > linhaInferiorIdentified.length) {
+                            linhaInferiorIdentified = prefixo + corpo;
+                        }
                     }
                 });
 
+                // Fallback inteligente caso não ache os prefixos exatos na separação por linhas
                 if (!linhaSuperiorIdentificada && !linhaInferiorIdentified && textoSeparado.length >= 2) {
                     linhaSuperiorIdentificada = textoSeparado[0];
                     linhaInferiorIdentified = textoSeparado[1];
@@ -459,42 +483,6 @@ function processarOcrLote(rawBase64) {
             });
         };
         img.src = base64Comprimido;
-    });
-}
-
-function CalculeLoteFormatado(textoStr) {
-    return textoStr;
-}
-
-/**
- * Trata e insere a foto capturada como evidência (Tela Cheia)
- */
-function processarFotoEvidencia(rawBase64) {
-    if (!rawBase64) return;
-    préComprimirImagemBase64(rawBase64, 1024, function(base64Comprimido) {
-        const previewElement = document.getElementById('prod-foto-preview');
-        if (previewElement) {
-            previewElement.src = base64Comprimido;
-            previewElement.dataset.base64 = base64Comprimido; 
-        }
-        const container = document.getElementById('prod-preview-container');
-        if (container) {
-            container.classList.remove('hidden');
-        }
-    });
-}
-
-/**
- * Trata e insere a foto dentro do formulário do Modal de Perfil
- */
-function processarFotoPerfil(rawBase64) {
-    if (!rawBase64) return;
-    préComprimirImagemBase64(rawBase64, 400, function(base64Comprimido) {
-        const perfilPreview = document.getElementById('edit-perfil-preview');
-        if (perfilPreview) {
-            perfilPreview.src = base64Comprimido;
-            perfilPreview.dataset.base64 = base64Comprimido;
-        }
     });
 }
 
