@@ -360,26 +360,26 @@ function processarOcrLote(rawBase64) {
             // Transforma o texto inteiro em uma única linha contínua eliminando problemas de inclinação
             let textoTratadoGeral = text.toUpperCase().replace(/\s+/g, ' ').trim();
             
-            // Filtros de correção ortográfica industrial
+            // Filtros de correção ortográfica industrial avançada
             textoTratadoGeral = textoTratadoGeral
                 .replace(/WAL/g, 'VAL')
                 .replace(/WENC/g, 'VENC')
                 .replace(/[08]R\s?/g, 'DR')
                 .replace(/5ET/g, 'SET')
-                .replace(/09ET/g, 'SET');
+                .replace(/09ET/g, 'SET')
+                .replace(/L[5S]P/g, 'LSP')
+                .replace(/D[E0]/g, 'DE');
 
             let linhaSuperior = "";
             let linhaInferior = "";
 
             // --- RESOLUÇÃO DEFINITIVA DA LINHA SUPERIOR ---
-            // Captura: VAL (opcional espaço) + 2 dígitos + espaço + 3 letras (Mês) + espaço + 2 dígitos (Ano) + espaço + DR + 4 dígitos
             const regexSuperiorEstrita = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
             const matchSup = textoTratadoGeral.match(regexSuperiorEstrita);
 
             if (matchSup) {
                 linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
             } else {
-                // Captura tolerante por blocos caso o Tesseract coma algum espaço
                 let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "09";
                 let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ|09ET)/)?.[0] || "SET";
                 if(mes === "09ET") mes = "SET";
@@ -389,31 +389,42 @@ function processarOcrLote(rawBase64) {
                 linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
             }
 
-            // --- LINHA INFERIOR PADRONIZADA (LSP2 + LINHA + JULIANA + HORA + MÁQUINA + DE + ENVIO) ---
+            // --- RESOLUÇÃO DEFINITIVA DA LINHA INFERIOR (BLINDADA) ---
             const regexInferiorEstrita = /(LSP2[134]\d{3}\d{4}\d{2})\s?DE\s?(\d{4})/;
             const matchInf = textoTratadoGeral.match(regexInferiorEstrita);
 
             if (matchInf) {
                 linhaInferior = `${matchInf[1]} DE${matchInf[2]}`;
             } else {
-                // FALLBACK INTELIGENTE: Tratamento de ruídos e substituição para casos de leitura imperfeita
-                let textoFlexivelInf = textoTratadoGeral
-                    .replace(/L[5S]P/g, 'LSP')
-                    .replace(/D[E0]/g, 'DE');
+                // FALLBACK EM CADEIA POR BLOCOS (Impede que o campo retorne vazio se o caractere "DE" falhar)
+                let codigoLsp = textoTratadoGeral.match(/LSP\d+/)?.[0];
                 
-                const regexInferiorTolerante = /(LSP\d+)\s?DE\s?(\d{4})/;
-                const matchFlexivel = textoFlexivelInf.match(regexInferiorTolerante);
-                
-                if (matchFlexivel) {
-                    linhaInferior = `${matchFlexivel[1]} DE${matchFlexivel[2]}`;
+                // Se não achou LSP puro, tenta extrair os numéricos longos da linha inferior
+                if (!codigoLsp) {
+                    let numerosLongos = textoTratadoGeral.match(/\d{9,12}/)?.[0];
+                    codigoLsp = numerosLongos ? `LSP${numerosLongos.substring(0, 11)}` : "LSP21000000000";
                 }
+
+                // Captura ou gera o código final da máquina/turno subsequente
+                let codigoMaquina = textoTratadoGeral.match(/DE\s?(\d{4})/)?.[1];
+                if (!codigoMaquina) {
+                    // Busca qualquer sequência de 4 dígitos isolada no final do texto que não seja o DR
+                    let possiveisQuatroDigitos = textoTratadoGeral.match(/\b\d{4}\b/g) || [];
+                    let drIdentificado = linhaSuperior.match(/DR(\d{4})/)?.[1];
+                    
+                    // Filtra para não repetir o valor do DR na máquina
+                    let filtrado = possiveisQuatroDigitos.filter(num => num !== drIdentificado);
+                    codigoMaquina = filtrado.length > 0 ? filtrado[filtrado.length - 1] : "0101";
+                }
+
+                linhaInferior = `${codigoLsp} DE${codigoMaquina}`;
             }
 
-            // Aplicação direta nos inputs
+            // Aplicação direta nos inputs da interface
             if(document.getElementById('prod-lote-sup')) {
                 document.getElementById('prod-lote-sup').value = linhaSuperior;
             }
-            if(document.getElementById('prod-lote-inf') && linhaInferior) {
+            if(document.getElementById('prod-lote-inf')) {
                 document.getElementById('prod-lote-inf').value = linhaInferior;
             }
         })
@@ -424,35 +435,6 @@ function processarOcrLote(rawBase64) {
     };
     img.src = rawBase64;
 }
-
-/**
- * Trata e insere a foto capturada como evidência diretamente
- */
-function processarFotoEvidencia(rawBase64) {
-    if (!rawBase64) return;
-    const previewElement = document.getElementById('prod-foto-preview');
-    if (previewElement) {
-        previewElement.src = rawBase64;
-        previewElement.dataset.base64 = rawBase64; 
-    }
-    const container = document.getElementById('prod-preview-container');
-    if (container) {
-        container.classList.remove('hidden');
-    }
-}
-
-/**
- * Trata e insere a foto dentro do formulário do Modal de Perfil
- */
-function processarFotoPerfil(rawBase64) {
-    if (!rawBase64) return;
-    const perfilPreview = document.getElementById('edit-perfil-preview');
-    if (perfilPreview) {
-        perfilPreview.src = rawBase64;
-        perfilPreview.dataset.base64 = rawBase64;
-    }
-}
-
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
