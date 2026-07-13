@@ -778,20 +778,29 @@ function carregarTabelaArquivo(segregados) {
 // 7. IMPRESSÃO DA ETIQUETA TÉRMICA E QR CODE
 // ==========================================
 
-// Função Intermediária para o usuário escolher o método de impressão de forma simples
+// Função Intermediária para o usuário escolher o método de impressão e quantidade
 window.gerenciarEscolhaImpressao = function(id) {
+    const qtdPrompt = prompt("Quantas cópias desta etiqueta deseja imprimir?", "1");
+    if (!qtdPrompt) return; // Cancelou
+    
+    const quantidade = parseInt(qtdPrompt);
+    if (isNaN(quantidade) || quantidade < 1) {
+        alert("Quantidade inválida.");
+        return;
+    }
+
     const escolha = confirm("Deseja imprimir direto na impressora ZEBRA via rede?\n\n[OK] para Zebra (Rede)\n[Cancelar] para Impressão Padrão (Navegador)");
     if (escolha) {
-        window.gerenciarImpressorasZebra(id);
+        window.gerenciarImpressorasZebra(id, quantidade);
     } else {
-        window.gerarEtiquetaProduto(id);
+        window.gerarEtiquetaProduto(id, quantidade);
     }
 };
 
-// NOVO: Gerenciador de Equipamentos Zebra (Salvar, Listar e Excluir)
-window.gerenciarImpressorasZebra = function(id) {
-    // Carrega a lista de impressoras salvas no localStorage
-    let impressoras = JSON.parse(localStorage.getItem('zebras_cadastradas')) || [];
+// Gerenciador de Equipamentos Zebra (Salvar, Listar e Excluir)
+// Modificado para usar 'sys_global_zebras' evitando perdas ao deslogar
+window.gerenciarImpressorasZebra = function(id, quantidade = 1) {
+    let impressoras = JSON.parse(localStorage.getItem('sys_global_zebras')) || [];
     
     let mensagem = "Selecione uma impressora digitando o NÚMERO correspondente:\n\n";
     
@@ -811,8 +820,7 @@ window.gerenciarImpressorasZebra = function(id) {
     mensagem += "C - Cancelar";
 
     const opcao = prompt(mensagem);
-    
-    if (!opcao) return; // Cancelou
+    if (!opcao) return; 
     const opcaoLimpa = opcao.trim().toUpperCase();
 
     // Opção: Cadastrar Nova
@@ -823,11 +831,10 @@ window.gerenciarImpressorasZebra = function(id) {
         if (!ip) return;
 
         impressoras.push({ nome: nome.trim(), ip: ip.trim() });
-        localStorage.setItem('zebras_cadastradas', JSON.stringify(impressoras));
+        localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
         alert("Impressora cadastrada com sucesso!");
         
-        // Reinicia o fluxo para o usuário poder usar a impressora que acabou de criar
-        window.gerenciarImpressorasZebra(id);
+        window.gerenciarImpressorasZebra(id, quantidade);
         return;
     }
 
@@ -845,10 +852,10 @@ window.gerenciarImpressorasZebra = function(id) {
         }
 
         const removida = impressoras.splice(numExcluir - 1, 1);
-        localStorage.setItem('zebras_cadastradas', JSON.stringify(impressoras));
+        localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
         alert(`A impressora "${removida[0].nome}" foi excluída.`);
         
-        window.gerenciarImpressorasZebra(id);
+        window.gerenciarImpressorasZebra(id, quantidade);
         return;
     }
 
@@ -858,14 +865,14 @@ window.gerenciarImpressorasZebra = function(id) {
     const indiceSelecionado = parseInt(opcaoLimpa) - 1;
     if (!isNaN(indiceSelecionado) && indiceSelecionado >= 0 && indiceSelecionado < impressoras.length) {
         const ipEscolhido = impressoras[indiceSelecionado].ip;
-        window.imprimirZebraRede(id, ipEscolhido);
+        window.imprimirZebraRede(id, ipEscolhido, quantidade);
     } else {
         alert("Opção inválida.");
     }
 };
 
-// OPÇÃO 1: IMPRESSÃO COMUM (Abre janela popup visual do navegador)
-window.gerarEtiquetaProduto = function(id) {
+// OPÇÃO 1: IMPRESSÃO COMUM (Layout Lado a Lado Otimizado para 10x7.5 cm)
+window.gerarEtiquetaProduto = function(id, quantidade = 1) {
     db.ref('segregados/' + id).once('value').then((snapshot) => {
         const item = snapshot.val();
         if (!item) {
@@ -873,68 +880,90 @@ window.gerarEtiquetaProduto = function(id) {
             return;
         }
 
-        // Captura o link completo atual e limpa o nome do arquivo executado
-const urlLimpa = window.location.href.split('?')[0].replace('dashboard.html', '').replace('index.html', '');
+        const urlLimpa = window.location.href.split('?')[0].replace('dashboard.html', '').replace('index.html', '');
+        const urlConsulta = `${urlLimpa}rastreabilidade.html?id=${item.id}`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(urlConsulta)}`;
+        
+        const janelaImpressao = window.open('', '_blank', 'width=500,height=400');
+        
+        let conteudoEtiquetas = "";
+        for (let i = 0; i < quantidade; i++) {
+            conteudoEtiquetas += `
+                <div class="label-page">
+                    <div class="alerta">PRODUTO RETIDO</div>
+                    <div class="header">CONTROLE DE QUALIDADE</div>
+                    
+                    <div class="main-content">
+                        <div class="info-block">
+                            <b>PRODUTO:</b> ${item.produto}<br>
+                            <b>LOTE:</b> ${item.lote}<br>
+                            <b>QTD:</b> ${item.quantidade}<br>
+                            ${item.turno ? `<b>TURNO:</b> ${item.turno}<br>` : ''}
+                            <b>DATA:</b> ${item.dataHora}<br>
+                            <b>STATUS:</b> ${item.status.toUpperCase()}<br>
+                            <b>RESP:</b> ${item.responsavel}
+                        </div>
 
-// Monta a URL correta preservando as pastas do servidor/GitHub
-const urlConsulta = `${urlLimpa}rastreabilidade.html?id=${item.id}`;
+                        <div class="qrcode-container">
+                            <img src="${qrCodeUrl}" alt="QR Code">
+                            <div class="qr-text">ESCANEE PARA RASTREABILIDADE</div>
+                        </div>
+                    </div>
 
-const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlConsulta)}`;
-const janelaImpressao = window.open('', '_blank', 'width=400,height=600');
+                    <div class="footer">
+                        ID Interno: #RL-${item.id}
+                    </div>
+                </div>
+            `;
+        }
         
         janelaImpressao.document.write(`
             <html>
             <head>
                 <title>Etiqueta de Retenção - Lote ${item.lote}</title>
                 <style>
-                    @page { size: 80mm 100mm; margin: 0; }
+                    @page { size: 100mm 75mm; margin: 0; }
                     body { 
                         font-family: 'Courier New', Courier, monospace; 
                         margin: 0; 
-                        padding: 12px; 
-                        text-align: center; 
-                        color: #000;
+                        padding: 0;
                         background: #fff;
                     }
-                    .header { font-size: 13px; font-weight: bold; border-bottom: 2px dashed #000; padding-bottom: 5px; margin-bottom: 8px; }
-                    .alerta { font-size: 16px; font-weight: bold; background: #000; color: #fff; padding: 4px; margin-bottom: 8px; display: inline-block; width: 100%; }
-                    .info-block { text-align: left; font-size: 11px; line-height: 1.4; margin-bottom: 8px; }
-                    .qrcode-container { margin: 8px 0; }
-                    .qrcode-container img { width: 125px; height: 125px; }
-                    .footer { font-size: 9px; border-top: 1px dashed #000; padding-top: 4px; margin-top: 5px; }
+                    .label-page {
+                        width: 100mm;
+                        height: 75mm;
+                        box-sizing: border-box;
+                        padding: 8px 12px;
+                        page-break-after: always;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .alerta { font-size: 14px; font-weight: bold; background: #000; color: #fff; padding: 3px; text-align: center; width: 100%; box-sizing: border-box; }
+                    .header { font-size: 11px; font-weight: bold; border-bottom: 2px dashed #000; padding: 3px 0; text-align: center; margin-bottom: 6px; }
+                    
+                    /* Divide as informações do QR Code lado a lado */
+                    .main-content { display: flex; flex-direction: row; flex: 1; align-items: flex-start; justify-content: space-between; }
+                    .info-block { width: 62%; text-align: left; font-size: 10px; line-height: 1.3; font-weight: bold; }
+                    .qrcode-container { width: 35%; text-align: center; display: flex; flex-direction: column; align-items: center; }
+                    .qrcode-container img { width: 95px; height: 95px; object-fit: contain; }
+                    .qr-text { font-size: 7px; margin-top: 2px; font-weight: bold; line-height: 1; }
+                    
+                    .footer { font-size: 9px; border-top: 1px dashed #000; padding-top: 3px; margin-top: auto; text-align: center; }
+                    
                     @media print {
-                        body { width: 80mm; height: 100mm; }
+                        .label-page { width: 100mm; height: 75mm; }
                     }
                 </style>
             </head>
             <body>
-                <div class="alerta">PRODUTO RETIDO</div>
-                <div class="header">CONTROLE DE QUALIDADE</div>
-                
-                <div class="info-block">
-                    <b>PRODUTO:</b> ${item.produto}<br>
-                    <b>LOTE:</b> ${item.lote}<br>
-                    <b>QTD:</b> ${item.quantidade}<br>
-                    ${item.turno ? `<b>TURNO:</b> ${item.turno}<br>` : ''}
-                    <b>DATA:</b> ${item.dataHora}<br>
-                    <b>STATUS ATUAL:</b> ${item.status.toUpperCase()}<br>
-                    <b>RESP:</b> ${item.responsavel}
-                </div>
-
-                <div class="qrcode-container">
-                    <img src="${qrCodeUrl}" alt="QR Code Rastreabilidade" onload="verificarCarregamento()">
-                    <div style="font-size: 9px; margin-top: 3px; font-weight: bold;">ESCANEE PARA RASTREABILIDADE</div>
-                </div>
-
-                <div class="footer">
-                    ID Interno: #RL-${item.id}
-                </div>
-
+                ${conteudoEtiquetas}
                 <script>
-                    function verificarCarregamento() {
-                        window.print();
-                        setTimeout(function() { window.close(); }, 500);
-                    }
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 600);
+                    };
                 <\/script>
             </body>
             </html>
@@ -946,8 +975,8 @@ const janelaImpressao = window.open('', '_blank', 'width=400,height=600');
     });
 };
 
-// OPÇÃO 2: ENVIAR PARA ZEBRA (Comando direto via IP da Rede - Atualizado para receber o IP dinâmico)
-window.imprimirZebraRede = function(id, ipImpressora) {
+// OPÇÃO 2: ENVIAR PARA ZEBRA (Com QRCode posicionado ao lado e livre de Cache)
+window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
     if (!ipImpressora) return;
 
     db.ref('segregados/' + id).once('value').then((snapshot) => {
@@ -959,41 +988,59 @@ window.imprimirZebraRede = function(id, ipImpressora) {
 
         const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
 
+        // Reestruturação ZPL para Etiqueta 100mm x 75mm (800x600 dots em 203 dpi)
+        // O QR Code foi empurrado para a extrema direita (^FO520,130) e as informações estão à esquerda
         const comandoZPL = `
 ^XA
 ^CI28
+^PW800
+^LL600
+
 ^FX --- Faixa Superior de Alerta ---
-^FO20,30^GB560,50,50^FS
-^FO150,40^A0N,35,35^FR^FDPRODUTO RETIDO^FS
+^FO40,30^GB720,45,45^FS
+^FO270,40^A0N,32,32^FR^FDPRODUTO RETIDO^FS
 
-^FX --- Informações do Produto ---
-^FO20,110^A0N,26,26^FDPRODUTO: ${item.produto.toUpperCase()}^FS
-^FO20,150^A0N,26,26^FDLOTE:    ${item.lote}^FS
-^FO20,190^A0N,26,26^FDQTD:     ${item.quantidade}^FS
-^FO20,230^A0N,26,26^FDDATA:    ${item.dataHora}^FS
-^FO20,270^A0N,26,26^FDSTATUS:  ${item.status.toUpperCase()}^FS
-^FO20,310^A0N,26,26^FDRESP:    ${item.responsavel.toUpperCase()}^FS
+^FX --- Cabeçalho ---
+^FO40,95^A0N,22,22^FDCONTROLE DE QUALIDADE^FS
+^FO40,120^GB720,2,2^FS
 
-^FX --- Linha Divisória ---
-^FO20,360^GB560,3,3^FS
+^FX --- Bloco de Informações (Esquerda) ---
+^FO40,150^A0N,24,24^FDPRODUTO: ${item.produto.toUpperCase()}^FS
+^FO40,190^A0N,24,24^FDLOTE:    ${item.lote}^FS
+^FO40,230^A0N,24,24^FDQTD:     ${item.quantidade}^FS
+^FO40,270^A0N,24,24^FDDATA:    ${item.dataHora}^FS
+^FO40,310^A0N,24,24^FDSTATUS:  ${item.status.toUpperCase()}^FS
+^FO40,350^A0N,24,24^FDRESP:    ${item.responsavel.toUpperCase()}^FS
 
-^FX --- Configuração Nativa do QR Code ---
-^FO200,400^BQN,2,6^FDQA,${urlConsulta}^FS
-^FO110,580^A0N,20,20^FDESCANEE PARA RASTREABILIDADE^FS
+^FX --- Bloco do QR Code (Direita - Sem Cortar) ---
+^FO520,150^BQN,2,5^FDQA,${urlConsulta}^FS
+^FO480,290^A0N,15,15^FDESCANEE PARA^FS
+^FO480,310^A0N,15,15^FDRASTREABILIDADE^FS
 
 ^FX --- Rodapé ---
-^FO20,630^GB560,2,2^FS
-^FO200,645^A0N,18,18^FDID Interno: #RL-${item.id}^FS
+^FO40,400^GB720,2,2^FS
+^FO260,415^A0N,20,20^FDID Interno: #RL-${item.id}^FS
+
+^FX --- Quantidade de Cópias Emitidas Nativamente ---
+^PQ${quantidade},0,1,Y
 ^XZ
         `;
 
-        fetch(`http://${ipImpressora}:9100`, {
+        // Geração de timestamp contra retenção de cache do barramento
+        const cacheBuster = Date.now();
+
+        fetch(`http://${ipImpressora}:9100/?cb=${cacheBuster}`, {
             method: 'POST',
             body: comandoZPL,
-            mode: 'no-cors'
+            mode: 'no-cors',
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
         })
         .then(() => {
-            alert("Comando enviado com sucesso para a impressora Zebra!");
+            alert(`Comando de impressão (${quantidade}x) enviado com sucesso para a Zebra!`);
         })
         .catch((err) => {
             console.error("Erro ao conectar na Zebra:", err);
