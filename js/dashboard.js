@@ -389,16 +389,23 @@ function processarOcrLote(rawBase64) {
                 linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
             }
 
-            // --- LINHA INFERIOR (LSP) ---
-            const matchLsp = textoTratadoGeral.match(/LSP\s?(\d+)\s?DE\s?(\d{4})/);
-            if (matchLsp) {
-                linhaInferior = `LSP${matchLsp[1]} DE${matchLsp[2]}`;
+            // --- LINHA INFERIOR PADRONIZADA (LSP2 + LINHA + JULIANA + HORA + MÁQUINA + DE + ENVIO) ---
+            const regexInferiorEstrita = /(LSP2[134]\d{3}\d{4}\d{2})\s?DE\s?(\d{4})/;
+            const matchInf = textoTratadoGeral.match(regexInferiorEstrita);
+
+            if (matchInf) {
+                linhaInferior = `${matchInf[1]} DE${matchInf[2]}`;
             } else {
-                // Fallback posicional para a linha inferior
-                const matchApenasLsp = textoTratadoGeral.match(/LSP\s?(\d+)/);
-                const matchApenasDe = textoTratadoGeral.match(/DE\s?(\d{4})/);
-                if (matchApenasLsp && matchApenasDe) {
-                    linhaInferior = `LSP${matchApenasLsp[1]} DE${matchApenasDe[1]}`;
+                // FALLBACK INTELIGENTE: Tratamento de ruídos e substituição para casos de leitura imperfeita
+                let textoFlexivelInf = textoTratadoGeral
+                    .replace(/L[5S]P/g, 'LSP')
+                    .replace(/D[E0]/g, 'DE');
+                
+                const regexInferiorTolerante = /(LSP\d+)\s?DE\s?(\d{4})/;
+                const matchFlexivel = textoFlexivelInf.match(regexInferiorTolerante);
+                
+                if (matchFlexivel) {
+                    linhaInferior = `${matchFlexivel[1]} DE${matchFlexivel[2]}`;
                 }
             }
 
@@ -445,6 +452,7 @@ function processarFotoPerfil(rawBase64) {
         perfilPreview.dataset.base64 = rawBase64;
     }
 }
+
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
 // ==========================================
