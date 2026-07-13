@@ -298,7 +298,6 @@ function dispararCapturaFoto() {
     const contextoParaProcessar = contextoCameraAtual;
 
     const canvasCaptura = document.createElement('canvas');
-    // Força resoluções limpas nativas para o OCR não perder definição
     canvasCaptura.width = video.videoWidth || 1280;
     canvasCaptura.height = video.videoHeight || 720;
     
@@ -318,18 +317,12 @@ function dispararCapturaFoto() {
     }
 }
 
-/**
- * Processamento OCR Direto e Preciso para Lotes Industriais
- */
-/**
- * Processamento OCR Direto e Preciso para Lotes Industriais
- */
 // ========================================================
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
 /**
- * MENSAGEM DO SISTEMA: Processamento OCR Direto e Preciso para Lotes Industriais
+ * Processamento OCR Direto e Preciso para Lotes Industriais Matriciais
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
@@ -430,26 +423,59 @@ function processarOcrLote(rawBase64) {
 }
 
 /**
- * Processa e exibe a imagem capturada como Evidência do Processo
+ * Processa e garante a retenção e exibição da Foto de Evidência antes do registro
  */
 function processarFotoEvidencia(rawBase64) {
     if (!rawBase64) return;
 
-    // 1. Atualiza o input hidden para envio no formulário (se houver)
-    const inputEvidenciaBase64 = document.getElementById('prod-foto-base64');
-    if (inputEvidenciaBase64) {
-        inputEvidenciaBase64.value = rawBase64;
+    console.log("Processando foto de evidência...");
+
+    // 1. Salva o Base64 no input hidden correto do formulário (testa variações)
+    let inputEvidencia = document.getElementById('prod-foto-base64') || 
+                         document.getElementById('foto-evidencia-base64') ||
+                         document.querySelector('input[name="prod-foto-base64"]');
+    
+    if (inputEvidencia) {
+        inputEvidencia.value = rawBase64;
+    } else {
+        console.warn("Input hidden 'prod-foto-base64' não foi encontrado no formulário.");
     }
 
-    // 2. Renderiza o preview visual na interface para o operador confirmar o registro
-    const containerPreview = document.getElementById('preview-evidencia-container');
-    const imgPreview = document.getElementById('preview-evidencia-img');
+    // 2. Busca os elementos visuais de preview na interface
+    let containerPreview = document.getElementById('preview-evidencia-container') || 
+                            document.querySelector('.preview-evidencia');
+    let imgPreview = document.getElementById('preview-evidencia-img') || 
+                     (containerPreview ? containerPreview.querySelector('img') : null);
 
     if (imgPreview && containerPreview) {
+        // Fluxo ideal: os elementos já existem no seu HTML
         imgPreview.src = rawBase64;
-        containerPreview.classList.remove('hidden');
+        containerPreview.classList.remove('hidden', 'd-none');
+        containerPreview.style.display = 'block';
     } else {
-        console.warn("Elementos visuais de preview da evidência não foram localizados no DOM.");
+        // FLUXO DE SEGURANÇA: Se o container de preview sumiu do HTML, 
+        // injeta dinamicamente um preview visual acima do botão de envio
+        console.log("Injetando container visual de preview dinâmico.");
+        
+        let areaForm = document.getElementById('form-registro-produto') || 
+                        document.querySelector('form') || 
+                        document.body;
+
+        let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
+        if (!previewSeguranca) {
+            previewSeguranca = document.createElement('div');
+            previewSeguranca.id = 'preview-seguranca-dinamico';
+            previewSeguranca.style.cssText = "margin: 15px 0; padding: 12px; border: 2px dashed #007bff; background: #f8f9fa; border-radius: 6px; text-align: center;";
+            previewSeguranca.innerHTML = `
+                <p style="margin: 0 0 6px 0; color: #007bff; font-weight: bold; font-size: 13px;">✓ Foto da Evidência Pronta</p>
+                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 180px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);"/>
+            `;
+            // Tenta inserir antes do botão de registrar se encontrar
+            let btnSubmit = areaForm.querySelector('button[type="submit"]') || areaForm.lastChild;
+            areaForm.insertBefore(previewSeguranca, btnSubmit);
+        } else {
+            document.getElementById('img-seguranca-dinamica').src = rawBase64;
+        }
     }
 }
 
