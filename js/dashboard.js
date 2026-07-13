@@ -304,7 +304,7 @@ function dispararCapturaFoto() {
     const ctx = canvasCaptura.getContext('2d');
     ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
     
-    const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.85); // 0.85 otimiza tamanho no Firebase sem perder nitidez
+    const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.85); 
     
     fecharCameraInApp();
 
@@ -327,7 +327,6 @@ function dispararCapturaFoto() {
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    // Força a limpeza dos campos antes de iniciar uma nova leitura para evitar carregar dados antigos
     if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "Processando...";
     if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "Processando...";
     
@@ -387,7 +386,6 @@ function processarOcrLote(rawBase64) {
             if (matchSup) {
                 linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
             } else {
-                // Se não achar a estrutura perfeita, tenta buscar pedaços, mas sem inventar dados do além
                 let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "";
                 let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?.[0] || "";
                 let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "";
@@ -421,19 +419,71 @@ function processarOcrLote(rawBase64) {
                 }
             }
 
-            // Alimenta os inputs com o que foi descoberto de verdade ou avisa a falha
             if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = linhaSuperior;
-            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = linhaInferior;
+            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = líneaInferior;
         })
         .catch(err => {
             console.error("Erro no motor Tesseract:", err);
-            // Se der erro real ou imagem limpa, esvazia os campos para digitação manual obrigatoriamente
             if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "";
             if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "";
             alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
         });
     };
     img.src = rawBase64;
+}
+
+/**
+ * Processa e garante a retenção da Foto de Evidência com CSS corrigido
+ */
+function processarFotoEvidencia(rawBase64) {
+    if (!rawBase64) return;
+
+    const imgPreviewPadrao = document.getElementById('prod-foto-preview');
+    const containerPreviewPadrao = document.getElementById('prod-preview-container');
+
+    if (imgPreviewPadrao && containerPreviewPadrao) {
+        imgPreviewPadrao.src = rawBase64;
+        containerPreviewPadrao.classList.remove('hidden');
+    }
+
+    let inputHiddenFoto = document.getElementById('prod-foto-base64') || document.getElementById('foto-evidencia-base64');
+    if (!inputHiddenFoto) {
+        inputHiddenFoto = document.createElement('input');
+        inputHiddenFoto.type = 'hidden';
+        inputHiddenFoto.id = 'prod-foto-base64';
+        document.getElementById('form-segregacao')?.appendChild(inputHiddenFoto);
+    }
+    inputHiddenFoto.value = rawBase64;
+
+    let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
+    if (!previewSeguranca) {
+        previewSeguranca = document.createElement('div');
+        previewSeguranca.id = 'preview-seguranca-dinamico';
+        previewSeguranca.style.cssText = "margin: 15px auto; padding: 12px; border: 2px dashed #2563eb; background: #f8fafc; border-radius: 8px; text-align: center; max-width: 100%; box-sizing: border-box; clear: both;";
+        previewSeguranca.innerHTML = `
+            <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold; font-size: 13px; display: block;">✓ Foto da Evidência Capturada</p>
+            <div style="width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; display: flex; justify-content: center; align-items: center; background: #000;">
+                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block; margin: 0 auto;"/>
+            </div>
+        `;
+        
+        let areaForm = document.getElementById('form-segregacao') || document.querySelector('form');
+        if (areaForm) {
+            let btnSubmit = areaForm.querySelector('button[type="submit"]') || areaForm.lastChild;
+            areaForm.insertBefore(previewSeguranca, btnSubmit);
+        }
+    } else {
+        const imgDinamica = document.getElementById('img-seguranca-dinamica');
+        if (imgDinamica) imgDinamica.src = rawBase64;
+    }
+}
+
+function processarFotoPerfil(rawBase64) {
+    if (!rawBase64) return;
+    const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
+    if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
+    const imgPerfil = document.getElementById('avatar-perfil-img');
+    if (imgPerfil) imgPerfil.src = rawBase64;
 }
 
 // ==========================================
