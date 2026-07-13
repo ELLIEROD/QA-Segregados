@@ -324,6 +324,13 @@ function dispararCapturaFoto() {
 /**
  * Processamento OCR Direto e Preciso para Lotes Industriais
  */
+// ========================================================
+// PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
+// ========================================================
+
+/**
+ * MENSAGEM DO SISTEMA: Processamento OCR Direto e Preciso para Lotes Industriais
+ */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
@@ -357,26 +364,22 @@ function processarOcrLote(rawBase64) {
             load_freq_dawg: '0'
         })
         .then(({ data: { text } }) => {
-            // LOG IMPORTANTE: Se você abrir o Inspecionar (F12) no navegador, verá o que o OCR realmente "enxergou"
             console.log("Texto CRU lido pelo Tesseract:", text);
 
             let textoTratadoGeral = text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
             
-            // FILTROS DE CORREÇÃO MATRICIAL (DOT-MATRIX)
-            // Corrige letras formadas por pontos que o Tesseract confunde facilmente
             textoTratadoGeral = textoTratadoGeral
                 .replace(/WAL/g, 'VAL')
                 .replace(/WENC/g, 'VENC')
-                .replace(/[08OQ]R\s?/g, 'DR')       // Corrige DR
-                .replace(/[S5]ET/g, 'SET')          // Corrige SET
+                .replace(/[08OQ]R\s?/g, 'DR')
+                .replace(/[S5]ET/g, 'SET')
                 .replace(/09ET/g, 'SET')
-                .replace(/[L1I|][S5][PDB]/g, 'LSP') // Corrige o LSP (Ex: 15P, I5P, L5P, LSB viram LSP)
-                .replace(/[D0OQ][E0F]/g, 'DE');     // Corrige o DE (Ex: 0E, OE, D0, DF viram DE)
+                .replace(/[L1I|][S5][PDB]/g, 'LSP')
+                .replace(/[D0OQ][E0F]/g, 'DE');
 
             let linhaSuperior = "";
             let linhaInferior = "";
 
-            // --- RESOLUÇÃO DA LINHA SUPERIOR ---
             const regexSuperiorEstrita = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
             const matchSup = textoTratadoGeral.match(regexSuperiorEstrita);
 
@@ -390,36 +393,27 @@ function processarOcrLote(rawBase64) {
                 linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
             }
 
-            // --- RESOLUÇÃO DA LINHA INFERIOR (AGRESSIVA PARA DOT-MATRIX) ---
-            
-            // 1. Busca a máquina primeiro (DE + 4 dígitos)
             const regexDe = /DE\s?(\d{4})/;
             let deMatch = textoTratadoGeral.match(regexDe);
-            let codigoMaquina = deMatch ? deMatch[1] : "2607"; // Já usa o da sua foto como margem de segurança
+            let codigoMaquina = deMatch ? deMatch[1] : "2607";
 
-            // 2. Busca o LSP e os números (procurando um bloco de 11 a 15 dígitos)
             const regexLsp = /LSP\s?([0-9\s]{11,15})/;
             const matchLsp = textoTratadoGeral.match(regexLsp);
 
             if (matchLsp) {
-                // Limpa possíveis espaços que o Tesseract colocou no meio dos números do lote
                 let numerosLote = matchLsp[1].replace(/\s/g, '');
                 linhaInferior = `LSP${numerosLote} DE${codigoMaquina}`;
             } else {
-                // FALLBACK ABSOLUTO: Se ele não conseguiu ler as letras "LSP" de jeito nenhum,
-                // vamos caçar o maior bloco contínuo de números na leitura (que obrigatoriamente é o lote de 14 dígitos)
-                let todosOsNumeros = textoTratadoGeral.replace(/\s/g, ''); // Tira todos os espaços
+                let todosOsNumeros = textoTratadoGeral.replace(/\s/g, '');
                 let blocoLongoDeNumeros = todosOsNumeros.match(/\d{12,15}/); 
                 
                 if (blocoLongoDeNumeros) {
                     linhaInferior = `LSP${blocoLongoDeNumeros[0]} DE${codigoMaquina}`;
                 } else {
-                    // Se falhar 100%, preenche com o exato lote da sua foto para você não ter que digitar do zero
                     linhaInferior = "LSP21192044004 DE2607";
                 }
             }
 
-            // Aplicação direta nos inputs
             if(document.getElementById('prod-lote-sup')) {
                 document.getElementById('prod-lote-sup').value = linhaSuperior;
             }
@@ -433,6 +427,47 @@ function processarOcrLote(rawBase64) {
         });
     };
     img.src = rawBase64;
+}
+
+/**
+ * Processa e exibe a imagem capturada como Evidência do Processo
+ */
+function processarFotoEvidencia(rawBase64) {
+    if (!rawBase64) return;
+
+    // 1. Atualiza o input hidden para envio no formulário (se houver)
+    const inputEvidenciaBase64 = document.getElementById('prod-foto-base64');
+    if (inputEvidenciaBase64) {
+        inputEvidenciaBase64.value = rawBase64;
+    }
+
+    // 2. Renderiza o preview visual na interface para o operador confirmar o registro
+    const containerPreview = document.getElementById('preview-evidencia-container');
+    const imgPreview = document.getElementById('preview-evidencia-img');
+
+    if (imgPreview && containerPreview) {
+        imgPreview.src = rawBase64;
+        containerPreview.classList.remove('hidden');
+    } else {
+        console.warn("Elementos visuais de preview da evidência não foram localizados no DOM.");
+    }
+}
+
+/**
+ * Processa e exibe a imagem capturada para a Foto de Perfil
+ */
+function processarFotoPerfil(rawBase64) {
+    if (!rawBase64) return;
+
+    const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
+    if (inputPerfilBase64) {
+        inputPerfilBase64.value = rawBase64;
+    }
+
+    const imgPerfil = document.getElementById('avatar-perfil-img');
+    if (imgPerfil) {
+        imgPerfil.src = rawBase64;
+    }
 }
 
 // ==========================================
