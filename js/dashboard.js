@@ -289,7 +289,7 @@ window.fecharCameraInApp = function() {
 };
 
 /**
- * Captura o frame atual de forma síncrona e entrega direto para os métodos sem compressão intermediária
+ * Captura o frame atual e distribui para os processadores corretos
  */
 function dispararCapturaFoto() {
     const video = document.getElementById('video-stream');
@@ -304,7 +304,7 @@ function dispararCapturaFoto() {
     const ctx = canvasCaptura.getContext('2d');
     ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
     
-    const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.95);
+    const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.85); // 0.85 otimiza tamanho no Firebase sem perder nitidez
     
     fecharCameraInApp();
 
@@ -321,9 +321,6 @@ function dispararCapturaFoto() {
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
-/**
- * Processamento OCR Direto e Preciso para Lotes Industriais Matriciais
- */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
@@ -357,8 +354,6 @@ function processarOcrLote(rawBase64) {
             load_freq_dawg: '0'
         })
         .then(({ data: { text } }) => {
-            console.log("Texto CRU lido pelo Tesseract:", text);
-
             let textoTratadoGeral = text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
             
             textoTratadoGeral = textoTratadoGeral
@@ -407,93 +402,73 @@ function processarOcrLote(rawBase64) {
                 }
             }
 
-            if(document.getElementById('prod-lote-sup')) {
-                document.getElementById('prod-lote-sup').value = linhaSuperior;
-            }
-            if(document.getElementById('prod-lote-inf')) {
-                document.getElementById('prod-lote-inf').value = linhaInferior;
-            }
+            if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = linhaSuperior;
+            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = linhaInferior;
         })
         .catch(err => {
             console.error("Erro no motor Tesseract:", err);
-            alert("Falha no escaneamento automático do lote.");
         });
     };
     img.src = rawBase64;
 }
 
 /**
- * Processa e garante a retenção e exibição da Foto de Evidência antes do registro
+ * CORREÇÃO DA FOTO DE EVIDÊNCIA: Garante o salvamento nos IDs corretos e remove a quebra do layout.
  */
 function processarFotoEvidencia(rawBase64) {
     if (!rawBase64) return;
 
-    console.log("Processando foto de evidência...");
+    // 1. Vincula diretamente no container padrão que o formulário usa para ler fotos enviadas por arquivo tradicional
+    const imgPreviewPadrao = document.getElementById('prod-foto-preview');
+    const containerPreviewPadrao = document.getElementById('prod-preview-container');
 
-    // 1. Salva o Base64 no input hidden correto do formulário (testa variações)
-    let inputEvidencia = document.getElementById('prod-foto-base64') || 
-                         document.getElementById('foto-evidencia-base64') ||
-                         document.querySelector('input[name="prod-foto-base64"]');
-    
-    if (inputEvidencia) {
-        inputEvidencia.value = rawBase64;
-    } else {
-        console.warn("Input hidden 'prod-foto-base64' não foi encontrado no formulário.");
+    if (imgPreviewPadrao && containerPreviewPadrao) {
+        // Alimenta o fluxo padrão do app!
+        imgPreviewPadrao.src = rawBase64;
+        containerPreviewPadrao.classList.remove('hidden');
     }
 
-    // 2. Busca os elementos visuais de preview na interface
-    let containerPreview = document.getElementById('preview-evidencia-container') || 
-                            document.querySelector('.preview-evidencia');
-    let imgPreview = document.getElementById('preview-evidencia-img') || 
-                     (containerPreview ? containerPreview.querySelector('img') : null);
+    // 2. Cria ou alimenta o input oculto de segurança para que o Bloco 5 ache de qualquer forma
+    let inputHiddenFoto = document.getElementById('prod-foto-base64') || document.getElementById('foto-evidencia-base64');
+    if (!inputHiddenFoto) {
+        inputHiddenFoto = document.createElement('input');
+        inputHiddenFoto.type = 'hidden';
+        inputHiddenFoto.id = 'prod-foto-base64';
+        document.getElementById('form-segregacao')?.appendChild(inputHiddenFoto);
+    }
+    inputHiddenFoto.value = rawBase64;
 
-    if (imgPreview && containerPreview) {
-        // Fluxo ideal: os elementos já existem no seu HTML
-        imgPreview.src = rawBase64;
-        containerPreview.classList.remove('hidden', 'd-none');
-        containerPreview.style.display = 'block';
-    } else {
-        // FLUXO DE SEGURANÇA: Se o container de preview sumiu do HTML, 
-        // injeta dinamicamente um preview visual acima do botão de envio
-        console.log("Injetando container visual de preview dinâmico.");
+    // 3. Atualiza o preview dinâmico com CSS ajustado para NÃO QUEBRAR no meio da linha tracejada
+    let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
+    if (!previewSeguranca) {
+        previewSeguranca = document.createElement('div');
+        previewSeguranca.id = 'preview-seguranca-dinamico';
+        // Correção de estilo aqui: adicionado box-sizing e display block limpo
+        previewSeguranca.style.cssText = "margin: 15px auto; padding: 12px; border: 2px dashed #2563eb; background: #f8fafc; border-radius: 8px; text-align: center; max-width: 100%; box-sizing: border-box; clear: both;";
+        previewSeguranca.innerHTML = `
+            <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold; font-size: 13px; display: block;">✓ Foto da Evidência Capturada</p>
+            <div style="width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; display: flex; justify-content: center; align-items: center; background: #000;">
+                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block; margin: 0 auto;"/>
+            </div>
+        `;
         
-        let areaForm = document.getElementById('form-registro-produto') || 
-                        document.querySelector('form') || 
-                        document.body;
-
-        let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
-        if (!previewSeguranca) {
-            previewSeguranca = document.createElement('div');
-            previewSeguranca.id = 'preview-seguranca-dinamico';
-            previewSeguranca.style.cssText = "margin: 15px 0; padding: 12px; border: 2px dashed #007bff; background: #f8f9fa; border-radius: 6px; text-align: center;";
-            previewSeguranca.innerHTML = `
-                <p style="margin: 0 0 6px 0; color: #007bff; font-weight: bold; font-size: 13px;">✓ Foto da Evidência Pronta</p>
-                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 180px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);"/>
-            `;
-            // Tenta inserir antes do botão de registrar se encontrar
+        let areaForm = document.getElementById('form-segregacao') || document.querySelector('form');
+        if (areaForm) {
             let btnSubmit = areaForm.querySelector('button[type="submit"]') || areaForm.lastChild;
             areaForm.insertBefore(previewSeguranca, btnSubmit);
-        } else {
-            document.getElementById('img-seguranca-dinamica').src = rawBase64;
         }
+    } else {
+        const imgDinamica = document.getElementById('img-seguranca-dinamica');
+        if (imgDinamica) imgDinamica.src = rawBase64;
     }
 }
 
-/**
- * Processa e exibe a imagem capturada para a Foto de Perfil
- */
 function processarFotoPerfil(rawBase64) {
     if (!rawBase64) return;
-
     const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
-    if (inputPerfilBase64) {
-        inputPerfilBase64.value = rawBase64;
-    }
-
+    if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
     const imgPerfil = document.getElementById('avatar-perfil-img');
-    if (imgPerfil) {
-        imgPerfil.src = rawBase64;
-    }
+    if (imgPerfil) imgPerfil.src = rawBase64;
 }
 
 // ==========================================
