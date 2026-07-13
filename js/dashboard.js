@@ -321,8 +321,15 @@ function dispararCapturaFoto() {
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
+/**
+ * Processamento OCR Direto e Preciso com Limpeza de Cache e Fallback Seguro
+ */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
+    
+    // Força a limpeza dos campos antes de iniciar uma nova leitura para evitar carregar dados antigos
+    if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "Processando...";
+    if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "Processando...";
     
     const img = new Image();
     img.onload = function() {
@@ -354,6 +361,12 @@ function processarOcrLote(rawBase64) {
             load_freq_dawg: '0'
         })
         .then(({ data: { text } }) => {
+            console.log("Texto CRU lido pelo Tesseract:", text);
+
+            if (!text || text.trim().length < 5) {
+                throw new Error("Texto insuficiente detectado na imagem.");
+            }
+
             let textoTratadoGeral = text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
             
             textoTratadoGeral = textoTratadoGeral
@@ -374,101 +387,53 @@ function processarOcrLote(rawBase64) {
             if (matchSup) {
                 linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
             } else {
-                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "09";
-                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?.[0] || "SET";
-                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "26";
-                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "2508";
-                linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
+                // Se não achar a estrutura perfeita, tenta buscar pedaços, mas sem inventar dados do além
+                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "";
+                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?.[0] || "";
+                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "";
+                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "";
+                
+                if(dia && mes && ano && dr) {
+                    linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
+                } else {
+                    linhaSuperior = "FALHA NA LEITURA SUPERIOR";
+                }
             }
 
             const regexDe = /DE\s?(\d{4})/;
             let deMatch = textoTratadoGeral.match(regexDe);
-            let codigoMaquina = deMatch ? deMatch[1] : "2607";
+            let codigoMaquina = deMatch ? deMatch[1] : "";
 
             const regexLsp = /LSP\s?([0-9\s]{11,15})/;
             const matchLsp = textoTratadoGeral.match(regexLsp);
 
             if (matchLsp) {
                 let numerosLote = matchLsp[1].replace(/\s/g, '');
-                linhaInferior = `LSP${numerosLote} DE${codigoMaquina}`;
+                linhaInferior = `LSP${numerosLote} ${codigoMaquina ? 'DE'+codigoMaquina : ''}`.trim();
             } else {
                 let todosOsNumeros = textoTratadoGeral.replace(/\s/g, '');
                 let blocoLongoDeNumeros = todosOsNumeros.match(/\d{12,15}/); 
                 
                 if (blocoLongoDeNumeros) {
-                    linhaInferior = `LSP${blocoLongoDeNumeros[0]} DE${codigoMaquina}`;
+                    linhaInferior = `LSP${blocoLongoDeNumeros[0]} ${codigoMaquina ? 'DE'+codigoMaquina : ''}`.trim();
                 } else {
-                    linhaInferior = "LSP21192044004 DE2607";
+                    linhaInferior = "FALHA NA LEITURA INFERIOR";
                 }
             }
 
+            // Alimenta os inputs com o que foi descoberto de verdade ou avisa a falha
             if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = linhaSuperior;
             if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = linhaInferior;
         })
         .catch(err => {
             console.error("Erro no motor Tesseract:", err);
+            // Se der erro real ou imagem limpa, esvazia os campos para digitação manual obrigatoriamente
+            if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "";
+            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "";
+            alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
         });
     };
     img.src = rawBase64;
-}
-
-/**
- * CORREÇÃO DA FOTO DE EVIDÊNCIA: Garante o salvamento nos IDs corretos e remove a quebra do layout.
- */
-function processarFotoEvidencia(rawBase64) {
-    if (!rawBase64) return;
-
-    // 1. Vincula diretamente no container padrão que o formulário usa para ler fotos enviadas por arquivo tradicional
-    const imgPreviewPadrao = document.getElementById('prod-foto-preview');
-    const containerPreviewPadrao = document.getElementById('prod-preview-container');
-
-    if (imgPreviewPadrao && containerPreviewPadrao) {
-        // Alimenta o fluxo padrão do app!
-        imgPreviewPadrao.src = rawBase64;
-        containerPreviewPadrao.classList.remove('hidden');
-    }
-
-    // 2. Cria ou alimenta o input oculto de segurança para que o Bloco 5 ache de qualquer forma
-    let inputHiddenFoto = document.getElementById('prod-foto-base64') || document.getElementById('foto-evidencia-base64');
-    if (!inputHiddenFoto) {
-        inputHiddenFoto = document.createElement('input');
-        inputHiddenFoto.type = 'hidden';
-        inputHiddenFoto.id = 'prod-foto-base64';
-        document.getElementById('form-segregacao')?.appendChild(inputHiddenFoto);
-    }
-    inputHiddenFoto.value = rawBase64;
-
-    // 3. Atualiza o preview dinâmico com CSS ajustado para NÃO QUEBRAR no meio da linha tracejada
-    let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
-    if (!previewSeguranca) {
-        previewSeguranca = document.createElement('div');
-        previewSeguranca.id = 'preview-seguranca-dinamico';
-        // Correção de estilo aqui: adicionado box-sizing e display block limpo
-        previewSeguranca.style.cssText = "margin: 15px auto; padding: 12px; border: 2px dashed #2563eb; background: #f8fafc; border-radius: 8px; text-align: center; max-width: 100%; box-sizing: border-box; clear: both;";
-        previewSeguranca.innerHTML = `
-            <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold; font-size: 13px; display: block;">✓ Foto da Evidência Capturada</p>
-            <div style="width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; display: flex; justify-content: center; align-items: center; background: #000;">
-                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block; margin: 0 auto;"/>
-            </div>
-        `;
-        
-        let areaForm = document.getElementById('form-segregacao') || document.querySelector('form');
-        if (areaForm) {
-            let btnSubmit = areaForm.querySelector('button[type="submit"]') || areaForm.lastChild;
-            areaForm.insertBefore(previewSeguranca, btnSubmit);
-        }
-    } else {
-        const imgDinamica = document.getElementById('img-seguranca-dinamica');
-        if (imgDinamica) imgDinamica.src = rawBase64;
-    }
-}
-
-function processarFotoPerfil(rawBase64) {
-    if (!rawBase64) return;
-    const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
-    if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
-    const imgPerfil = document.getElementById('avatar-perfil-img');
-    if (imgPerfil) imgPerfil.src = rawBase64;
 }
 
 // ==========================================
