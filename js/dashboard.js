@@ -526,7 +526,23 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
 
     const motivo = document.getElementById('prod-motivo').value;
     const observacoes = document.getElementById('prod-observacoes').value.trim();
-    const fotoProduto = document.getElementById('prod-preview-container').classList.contains('hidden') ? "" : document.getElementById('prod-foto-preview').src;
+
+    // --- CORREÇÃO DA FOTO DE EVIDÊNCIA ---
+    // Busca prioritariamente no input hidden onde a câmera salvou o base64
+    let fotoProduto = "";
+    const inputHiddenFoto = document.getElementById('prod-foto-base64') || document.getElementById('foto-evidencia-base64');
+    
+    if (inputHiddenFoto && inputHiddenFoto.value) {
+        fotoProduto = inputHiddenFoto.value;
+    } else {
+        // Fallback caso a foto venha do carregamento de arquivos tradicional (PC)
+        const previewTradicional = document.getElementById('prod-foto-preview');
+        const containerTradicional = document.getElementById('prod-preview-container');
+        if (previewTradicional && containerTradicional && !containerTradicional.classList.contains('hidden')) {
+            fotoProduto = previewTradicional.src;
+        }
+    }
+    // -------------------------------------
 
     const agora = new Date();
     const dataHoraStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
@@ -540,7 +556,7 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
         quantidade: `${qtdTexto} (${dollys}D + ${cestos}C)`, 
         motivo: motivo,
         observacao: observacoes, 
-        foto: fotoProduto, 
+        foto: fotoProduto, // Salva o base64 correto recuperado acima
         dataHora: dataHoraStr, 
         responsavel: usuarioLogado.nome, 
         status: "Pendente", // Nasce pendente
@@ -552,6 +568,14 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
     .then(() => {
         alert("Registro de segregação efetuado com sucesso na nuvem!");
         this.reset();
+        
+        // Limpa o input hidden para o próximo registro não repetir a foto antiga
+        if (inputHiddenFoto) inputHiddenFoto.value = "";
+        
+        // Remove o container de preview dinâmico da câmera se ele existir
+        const previewDinamico = document.getElementById('preview-seguranca-dinamico');
+        if (previewDinamico) previewDinamico.remove();
+
         document.getElementById('prod-lote-sup').disabled = false;
         document.getElementById('prod-lote-inf').disabled = false;
         document.getElementById('prod-preview-container').classList.add('hidden');
@@ -593,7 +617,7 @@ window.decisaoQualidade = function(id, novoStatus) {
             status: novoStatus,
             motivoQualidade: motivoFinal.trim(),
             dataMudancaStatus: new Date().toISOString() // Salva o carimbo de data para o Passo 6 (15 dias)
-        }).then(() => alert(`Status do produto atualizado para: ${novoStatus}`));
+        }).then(() => alert(`Status do produto updated para: ${novoStatus}`));
     });
 };
 
