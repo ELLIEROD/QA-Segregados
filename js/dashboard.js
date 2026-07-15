@@ -330,112 +330,124 @@ function processarOcrLote(rawBase64) {
     const inputSup = document.getElementById('prod-lote-sup');
     const inputInf = document.getElementById('prod-lote-inf');
     
-    if (inputSup) inputSup.value = "Processando...";
-    if (inputInf) inputInf.value = "Processando...";
+    if (inputSup) inputSup.value = "Analisando Linha Superior...";
+    if (inputInf) inputInf.value = "Analisando Linha Inferior...";
     
     const img = new Image();
     img.onload = function() {
-        const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // RECORTE ULTRA-FOCADO: Corta uma faixa horizontal bem estreita no centro da imagem (onde o lote fica)
-        const corteLargura = Math.floor(img.width * 0.85);
-        const corteAltura = Math.floor(img.height * 0.30); 
+        // 1. Recorte Geral da área do lote (mesmo filtro anterior)
+        const corteLargura = Math.floor(img.width * 0.90);
+        const corteAltura = Math.floor(img.height * 0.45); 
         const corteX = Math.floor((img.width - corteLargura) / 2);
         const corteY = Math.floor((img.height - corteAltura) / 2);
 
-        canvas.width = corteLargura;
-        canvas.height = corteAltura;
-        ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, 0, 0, corteLargura, corteAltura);
-        
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
-        const len = data.length;
+        // Canvas temporários para processar cada metade separadamente
+        const canvasSup = document.createElement('canvas');
+        const canvasInf = document.createElement('canvas');
+        const ctxSup = canvasSup.getContext('2d');
+        const ctxInf = canvasInf.getContext('2d');
 
-        // FILTRO DE ALTO CONSTRASTE DINÂMICO
-        let somaCinza = 0;
-        for (let i = 0; i < len; i += 4) {
-            somaCinza += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        // Metade Superior (Linha 1)
+        canvasSup.width = corteLargura;
+        canvasSup.height = Math.floor(corteAltura / 2);
+        ctxSup.drawImage(img, corteX, corteY, corteLargura, canvasSup.height, 0, 0, corteLargura, canvasSup.height);
+
+        // Metade Inferior (Linha 2)
+        canvasInf.width = corteLargura;
+        canvasInf.height = Math.floor(corteAltura / 2);
+        ctxInf.drawImage(img, corteX, corteY + canvasSup.height, corteLargura, canvasInf.height, 0, 0, corteLargura, canvasInf.height);
+
+        // Função interna para aplicar os filtros morfológicos (Binarização + Dilatação Dot-Matrix)
+        function otimizarLinha(canvasItem, ctxItem) {
+            const imgData = ctxItem.getImageData(0, 0, canvasItem.width, canvasItem.height);
+            const data = imgData.data;
+            const len = data.length;
+            const width = canvasItem.width;
+
+            let somaCinza = 0;
+            for (let i = 0; i < len; i += 4) {
+                somaCinza += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            }
+            const limiar = (somaCinza / (len / 4)) * 0.85; 
+
+            const binario = new Uint8Array(len / 4);
+            for (let i = 0; i < len; i += 4) {
+                let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                binario[i / 4] = (cinza < limiar) ? 0 : 255;
+            }
+
+            // Dilatação morfológica horizontal para juntar os pontos da impressora de matriz
+            for (let i = 0; i < binario.length; i++) {
+                if (binario[i] === 0) {
+                    if (i % width > 0) binario[i - 1] = 0;
+                    if (i % width < width - 1) binario[i + 1] = 0;
+                }
+            }
+
+            for (let i = 0; i < len; i += 4) {
+                let v = binario[i / 4];
+                data[i] = data[i+1] = data[i+2] = v;
+            }
+            ctxItem.putImageData(imgData, 0, 0);
+            return canvasItem.toDataURL('image/jpeg', 1.0);
         }
-        const limiarAdaptativo = (somaCinza / (len / 4)) * 0.9; 
 
-        for (let i = 0; i < len; i += 4) {
-            let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            let v = (cinza < limiarAdaptativo) ? 0 : 255; 
-            data[i] = data[i+1] = data[i+2] = v;
-        }
-        ctx.putImageData(imgData, 0, 0);
+        // Prepara as imagens otimizadas em formato Base64 para envio individual
+        const urlSup = otimizarLinha(canvasSup, ctxSup);
+        const urlInf = otimizarLinha(canvasInf, ctxInf);
 
-        // CONFIGURAÇÃO REFORÇADA PARA TESSERACT
-        Tesseract.recognize(canvas.toDataURL('image/jpeg', 1.0), 'por+eng', {
-            tessedit_pageseg_mode: '6', 
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ', 
+        const configTesseract = {
+            tessedit_pageseg_mode: '7', // Modo 7 assume estritamente uma única linha de texto (perfeito aqui)
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ',
             load_system_dawg: '0',
             load_freq_dawg: '0'
-        })
-        .then(({ data: { text } }) => {
-            console.log("Texto CRU Otimizado:", text);
+        };
 
-            if (!text || text.trim().length < 4) throw new Error("Texto insuficiente.");
+        // 2. Executa a leitura paralela das duas metades
+        Promise.all([
+            Tesseract.recognize(urlSup, 'por+eng', configTesseract),
+            Tesseract.recognize(urlInf, 'por+eng', configTesseract)
+        ])
+        .then(([resSup, resInf]) => {
+            let txtSup = resSup.data.text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+            let txtInf = resInf.data.text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
 
-            let textoTratadoGeral = text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+            console.log("Linha Superior Detectada:", txtSup);
+            console.log("Linha Inferior Detectada:", txtInf);
+
+            // Substituições de redundância
+            txtSup = txtSup.replace(/WAL/g, 'VAL').replace(/WENC/g, 'VENC').replace(/[08OQ]R\s?/g, 'DR');
+            txtInf = txtInf.replace(/[L1I|][S5][PDB]/g, 'LSP').replace(/[D0OQ][E0F]/g, 'DE');
+
+            // --- LÓGICA DE EXTRAÇÃO INDEPENDENTE ---
+            let resultadoSuperior = "FALHA NA LEITURA SUPERIOR";
+            const matchVal = txtSup.match(/VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})/);
+            const matchDr = txtSup.match(/DR\s?(\d{4})/);
             
-            textoTratadoGeral = textoTratadoGeral
-                .replace(/WAL/g, 'VAL')
-                .replace(/WENC/g, 'VENC')
-                .replace(/[08OQ]R\s?/g, 'DR')
-                .replace(/[S5]ET/g, 'SET')
-                .replace(/[L1I|][S5][PDB]/g, 'LSP')
-                .replace(/[D0OQ][E0F]/g, 'DE');
-
-            let linhaSuperior = "";
-            let linhaInferior = "";
-
-            // ---- LÓGICA DE REGEX CORRIGIDA ----
-            const regexSuperiorEstrita = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
-            const matchSup = textoTratadoGeral.match(regexSuperiorEstrita);
-
-            if (matchSup) {
-                linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
-            } else {
-                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "";
-                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?.[0] || "";
-                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "";
-                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "";
-                
-                if(dia && mes && ano && dr) {
-                    linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
-                } else {
-                    linhaSuperior = "FALHA NA LEITURA SUPERIOR";
-                }
+            if (matchVal && matchDr) {
+                resultadoSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]} DR${matchDr[1]}`;
+            } else if (matchVal) {
+                resultadoSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]}`;
             }
 
-            const regexDe = /DE\s?(\d{4})/;
-            let deMatch = textoTratadoGeral.match(regexDe);
-            let codigoMaquina = deMatch ? deMatch[1] : "";
+            let resultadoInferior = "FALHA NA LEITURA INFERIOR";
+            const matchLsp = txtInf.match(/LSP\s?(\d{11,15})/);
+            const matchDe = txtInf.match(/DE\s?(\d{4})/);
 
-            const regexLsp = /LSP\s?([0-9\s]{11,15})/;
-            const matchLsp = textoTratadoGeral.match(regexLsp);
-
-            if (matchLsp) {
-                let numerosLote = matchLsp[1].replace(/\s/g, '');
-                linhaInferior = `LSP${numerosLote} ${codigoMaquina ? 'DE'+codigoMaquina : ''}`.trim();
+            if (matchLsp && matchDe) {
+                resultadoInferior = `LSP${matchLsp[1]} DE${matchDe[1]}`;
+            } else if (matchLsp) {
+                resultadoInferior = `LSP${matchLsp[1]}`;
             } else {
-                let todosOsNumeros = textoTratadoGeral.replace(/\s/g, '');
-                let blocoLongoDeNumeros = todosOsNumeros.match(/\d{12,15}/); 
-                
-                if (blocoLongoDeNumeros) {
-                    linhaInferior = `LSP${blocoLongoDeNumeros[0]} ${codigoMaquina ? 'DE'+codigoMaquina : ''}`.trim();
-                } else {
-                    linhaInferior = "FALHA NA LEITURA INFERIOR";
-                }
+                let blocoLongo = txtInf.replace(/\s/g, '').match(/\d{11,15}/);
+                if (blocoLongo) resultadoInferior = `LSP${blocoLongo[0]}`;
             }
 
-            if(inputSup) inputSup.value = linhaSuperior;
-            if(inputInf) inputInf.value = linhaInferior;
+            if (inputSup) inputSup.value = resultadoSuperior;
+            if (inputInf) inputInf.value = resultadoInferior;
         })
         .catch(err => {
-            console.error("Erro no motor Tesseract:", err);
+            console.error("Erro na leitura segmentada:", err);
             if(inputSup) inputSup.value = "";
             if(inputInf) inputInf.value = "";
             alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
