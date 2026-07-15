@@ -344,16 +344,19 @@ function processarOcrLote(rawBase64) {
     dadosEnvio.append("scale", "true");
     dadosEnvio.append("OCREngine", "2"); 
 
+        // Verifique se esta variável está declarada logo acima do fetch:
     const URL_ENDPOINT_CORRETO = "https://ocr.space";
 
+    // CORREÇÃO DA LINHA 349: Passando a variável correta para o fetch
     fetch(URL_ENDPOINT_CORRETO, {
         method: "POST",
         headers: { 
             "apikey": OCR_SPACE_KEY,
-            "Content-Type": "application/x-www-form-urlencoded" // Tipo de conteúdo simples aceito pela API
+            "Content-Type": "application/x-www-form-urlencoded"
         },
         body: dadosEnvio.toString()
     })
+
     .then(response => {
         if (!response.ok) {
             throw new Error(`Resposta inválida do servidor: ${response.status}`);
