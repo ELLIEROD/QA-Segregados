@@ -345,9 +345,9 @@ function processarOcrLote(rawBase64) {
     dadosEnvio.append("OCREngine", "2"); 
 
         // Verifique se esta variável está declarada logo acima do fetch:
-    const URL_ENDPOINT_CORRETO = "https://ocr.space";
+       const URL_ENDPOINT_CORRETO = "https://ocr.space";
 
-    // CORREÇÃO DA LINHA 349: Passando a variável correta para o fetch
+    // CORREÇÃO DEFINITIVA (Linha 351): Note que NÃO existem aspas aqui! É o nome da variável direto.
     fetch(URL_ENDPOINT_CORRETO, {
         method: "POST",
         headers: { 
@@ -356,6 +356,7 @@ function processarOcrLote(rawBase64) {
         },
         body: dadosEnvio.toString()
     })
+
 
     .then(response => {
         if (!response.ok) {
