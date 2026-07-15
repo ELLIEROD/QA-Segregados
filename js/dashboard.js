@@ -321,12 +321,8 @@ function dispararCapturaFoto() {
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
-// ========================================================
-// 4. SCANNER OCR - PROCESSADOR DE LOTE (INTEGRAÇÃO NUVEM)
-// ========================================================
-
 /**
- * Processamento OCR via API Gratuita (OCR.space) - Suporta fontes pontilhadas e livre de CORS
+ * Processamento OCR via API Gratuita (OCR.space) - Versão Definitiva Sem Bloqueio de CORS
  */
 window.processarOcrLote = function(rawBase64) {
     if (!rawBase64) return;
@@ -340,8 +336,8 @@ window.processarOcrLote = function(rawBase64) {
     // Insira sua chave privada recebida por e-mail aqui
     const OCR_SPACE_KEY = "K84567120588957"; 
 
-    // Uso do URLSearchParams simples para burlar bloqueios complexos de preflight de CORS
-    const dadosEnvio = new URLSearchParams();
+    // Uso do FormData Nativo (Exigido pela API para evitar Preflight do CORS)
+    const dadosEnvio = new FormData();
     dadosEnvio.append("base64Image", rawBase64);
     dadosEnvio.append("language", "por");
     dadosEnvio.append("isOverlayRequired", "false");
@@ -353,10 +349,11 @@ window.processarOcrLote = function(rawBase64) {
     fetch(URL_ENDPOINT_CORRETO, {
         method: "POST",
         headers: { 
-            "apikey": OCR_SPACE_KEY,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "apikey": OCR_SPACE_KEY
+            // ATENÇÃO: NÃO inclua "Content-Type" manualmente aqui.
+            // Deixar em branco força o navegador a gerar o 'multipart/form-data' correto, limpando o CORS.
         },
-        body: dadosEnvio.toString()
+        body: dadosEnvio
     })
     .then(response => {
         if (!response.ok) {
