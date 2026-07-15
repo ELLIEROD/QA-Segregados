@@ -342,7 +342,7 @@ function processarOcrLote(rawBase64) {
 
     // CADASTRO GRATUITO EM: https://ocr.space (Envia a chave no seu e-mail na hora)
     // Se deixar 'helloworld', funciona, mas tem limite estrito de testes por hora.
-    const OCR_SPACE_KEY = "helloworld"; 
+    const OCR_SPACE_KEY = "K84567120588957"; 
 
     // Prepara os dados para envio via FormData (Formato exigido pela API)
     const formData = new FormData();
