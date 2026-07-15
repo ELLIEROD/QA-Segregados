@@ -338,7 +338,7 @@ function processarOcrLote(rawBase64) {
     if (inputInf) inputInf.value = "Analisando Retorno...";
 
     // Coloque a sua chave do e-mail aqui
-    const OCR_SPACE_KEY = "SUA_CHAVE_AQUI"; 
+    const OCR_SPACE_KEY = "K84567120588957"; 
 
     const dadosFormulario = new URLSearchParams();
     dadosFormulario.append("base64Image", rawBase64);
