@@ -321,10 +321,14 @@ function dispararCapturaFoto() {
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
+// ========================================================
+// 4. SCANNER OCR - PROCESSADOR DE LOTE (INTEGRAÇÃO NUVEM)
+// ========================================================
+
 /**
- * Processamento OCR via API Gratuita (OCR.space) - PWA Clean Version
+ * Processamento OCR via API Gratuita (OCR.space) - Suporta fontes pontilhadas e livre de CORS
  */
-function processarOcrLote(rawBase64) {
+window.processarOcrLote = function(rawBase64) {
     if (!rawBase64) return;
     
     const inputSup = document.getElementById('prod-lote-sup');
@@ -333,10 +337,10 @@ function processarOcrLote(rawBase64) {
     if (inputSup) inputSup.value = "Conectando ao Servidor...";
     if (inputInf) inputInf.value = "Conectando ao Servidor...";
 
-    // Coloque a sua chave obtida por e-mail aqui
-    const OCR_SPACE_KEY = "K84567120588957"; 
+    // Insira sua chave privada recebida por e-mail aqui
+    const OCR_SPACE_KEY = "SUA_CHAVE_DO_EMAIL_AQUI"; 
 
-    // URLSearchParams evita requisições complexas (OPTIONS/Preflight), eliminando o bloqueio de CORS simples
+    // Uso do URLSearchParams simples para burlar bloqueios complexos de preflight de CORS
     const dadosEnvio = new URLSearchParams();
     dadosEnvio.append("base64Image", rawBase64);
     dadosEnvio.append("language", "por");
@@ -344,10 +348,8 @@ function processarOcrLote(rawBase64) {
     dadosEnvio.append("scale", "true");
     dadosEnvio.append("OCREngine", "2"); 
 
-        // Verifique se esta variável está declarada logo acima do fetch:
-       const URL_ENDPOINT_CORRETO = "https://ocr.space";
+    const URL_ENDPOINT_CORRETO = "https://ocr.space";
 
-    // CORREÇÃO DEFINITIVA (Linha 351): Note que NÃO existem aspas aqui! É o nome da variável direto.
     fetch(URL_ENDPOINT_CORRETO, {
         method: "POST",
         headers: { 
@@ -356,8 +358,6 @@ function processarOcrLote(rawBase64) {
         },
         body: dadosEnvio.toString()
     })
-
-
     .then(response => {
         if (!response.ok) {
             throw new Error(`Resposta inválida do servidor: ${response.status}`);
@@ -418,12 +418,17 @@ function processarOcrLote(rawBase64) {
         if (inputInf) inputInf.value = "";
         alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
     });
-}
+};
+
+
+// ========================================================
+// 4.1 CAPTURA E RETENÇÃO DE FOTOS (EVIDÊNCIA E PERFIL)
+// ========================================================
 
 /**
- * Processa e garante a retenção da Foto de Evidência com CSS corrigido
+ * Processa a Foto de Evidência e renderiza os previews na tela de forma estrita
  */
-function processarFotoEvidencia(rawBase64) {
+window.processarFotoEvidencia = function(rawBase64) {
     if (!rawBase64) return;
 
     const imgPreviewPadrao = document.getElementById('prod-foto-preview');
@@ -464,18 +469,18 @@ function processarFotoEvidencia(rawBase64) {
         const imgDinamica = document.getElementById('img-seguranca-dinamica');
         if (imgDinamica) imgDinamica.src = rawBase64;
     }
-}
+};
 
 /**
- * Processa a Foto de Perfil
+ * Processa e renderiza a Foto de Perfil do usuário
  */
-function processarFotoPerfil(rawBase64) {
+window.processarFotoPerfil = function(rawBase64) {
     if (!rawBase64) return;
     const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
     if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
     const imgPerfil = document.getElementById('avatar-perfil-img');
     if (imgPerfil) imgPerfil.src = rawBase64;
-}
+};
 
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
