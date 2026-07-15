@@ -324,36 +324,41 @@ function dispararCapturaFoto() {
 /**
  * Processamento OCR via API Gratuita (OCR.space) - Versão Definitiva Sem Bloqueio de CORS
  */
+/**
+ * Processamento OCR via API Gratuita (OCR.space) - Roteado via Proxy Seguro para eliminar CORS do GitHub
+ */
 window.processarOcrLote = function(rawBase64) {
     if (!rawBase64) return;
     
     const inputSup = document.getElementById('prod-lote-sup');
     const inputInf = document.getElementById('prod-lote-inf');
     
-    if (inputSup) inputSup.value = "Conectando ao Servidor...";
-    if (inputInf) inputInf.value = "Conectando ao Servidor...";
+    if (inputSup) inputSup.value = "Roteando Requisição...";
+    if (inputInf) inputInf.value = "Roteando Requisição...";
 
     // Insira sua chave privada recebida por e-mail aqui
     const OCR_SPACE_KEY = "K84567120588957"; 
 
-    // Uso do FormData Nativo (Exigido pela API para evitar Preflight do CORS)
-    const dadosEnvio = new FormData();
+    // O URLSearchParams envia os dados como string pura, essencial para transitar pelo proxy
+    const dadosEnvio = new URLSearchParams();
     dadosEnvio.append("base64Image", rawBase64);
     dadosEnvio.append("language", "por");
     dadosEnvio.append("isOverlayRequired", "false");
     dadosEnvio.append("scale", "true");
     dadosEnvio.append("OCREngine", "2"); 
 
-    const URL_ENDPOINT_CORRETO = "https://ocr.space";
+    // Proxy público que adiciona os cabeçalhos de liberação de CORS na resposta
+    const PROXY_CORS = "https://herokuapp.com";
+    const URL_API_REAL = "https://api.ocr.space/parse/image";
 
-    fetch(URL_ENDPOINT_CORRETO, {
+    // Concatena o Proxy antes da URL real da API
+    fetch(PROXY_CORS + URL_API_REAL, {
         method: "POST",
         headers: { 
-            "apikey": OCR_SPACE_KEY
-            // ATENÇÃO: NÃO inclua "Content-Type" manualmente aqui.
-            // Deixar em branco força o navegador a gerar o 'multipart/form-data' correto, limpando o CORS.
+            "apikey": OCR_SPACE_KEY,
+            "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: dadosEnvio
+        body: dadosEnvio.toString()
     })
     .then(response => {
         if (!response.ok) {
@@ -416,7 +421,6 @@ window.processarOcrLote = function(rawBase64) {
         alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
     });
 };
-
 
 // ========================================================
 // 4.1 CAPTURA E RETENÇÃO DE FOTOS (EVIDÊNCIA E PERFIL)
