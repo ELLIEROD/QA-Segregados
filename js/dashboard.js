@@ -327,99 +327,122 @@ function dispararCapturaFoto() {
 /**
  * Processamento OCR via API Gratuita (OCR.space) - Roteado via Proxy Seguro para eliminar CORS do GitHub
  */
+/**
+ * Processamento OCR via API Gratuita (OCR.space) - Conversão Binária Nativa Sem Proxy
+ */
 window.processarOcrLote = function(rawBase64) {
     if (!rawBase64) return;
     
     const inputSup = document.getElementById('prod-lote-sup');
     const inputInf = document.getElementById('prod-lote-inf');
     
-    if (inputSup) inputSup.value = "Roteando Requisição...";
-    if (inputInf) inputInf.value = "Roteando Requisição...";
+    if (inputSup) inputSup.value = "Processando Imagem...";
+    if (inputInf) inputInf.value = "Processando Imagem...";
 
     // Insira sua chave privada recebida por e-mail aqui
     const OCR_SPACE_KEY = "K84567120588957"; 
 
-    // O URLSearchParams envia os dados como string pura, essencial para transitar pelo proxy
-    const dadosEnvio = new URLSearchParams();
-    dadosEnvio.append("base64Image", rawBase64);
-    dadosEnvio.append("language", "por");
-    dadosEnvio.append("isOverlayRequired", "false");
-    dadosEnvio.append("scale", "true");
-    dadosEnvio.append("OCREngine", "2"); 
-
-    // Proxy público que adiciona os cabeçalhos de liberação de CORS na resposta
-    const PROXY_CORS = "https://herokuapp.com";
-    const URL_API_REAL = "https://api.ocr.space/parse/image";
-
-    // Concatena o Proxy antes da URL real da API
-    fetch(PROXY_CORS + URL_API_REAL, {
-        method: "POST",
-        headers: { 
-            "apikey": OCR_SPACE_KEY,
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: dadosEnvio.toString()
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Resposta inválida do servidor: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(result => {
-        if (result.IsErroredOnProcessing || !result.ParsedResults) {
-            throw new Error(result.ErrorMessage || "Erro ao processar imagem na nuvem.");
-        }
-
-        const textoCru = result.ParsedResults[0]?.ParsedText || "";
-        console.log("Texto coletado da nuvem com sucesso:", textoCru);
-
-        if (!textoCru || textoCru.trim().length < 3) {
-            throw new Error("A nuvem processou a foto, mas não detectou nenhuma palavra legível.");
-        }
-
-        let textoTratadoGeral = textoCru.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    try {
+        // 1. CONVERSÃO: Transforma a String Base64 em um Arquivo Binário (Blob) físico
+        const partes = rawBase64.split(',');
+        const dadosMime = partes[0].match(/:(.*?);/)[1];
+        const stringBytes = atob(partes[1]);
+        let n = stringBytes.length;
+        const arrayU8 = new Uint8Array(n);
         
-        textoTratadoGeral = textoTratadoGeral
-            .replace(/WAL/g, 'VAL')
-            .replace(/WENC/g, 'VENC')
-            .replace(/[08OQ]R\s?/g, 'DR')
-            .replace(/[S5]ET/g, 'SET')
-            .replace(/[L1I|][S5][PDB]/g, 'LSP')
-            .replace(/[D0OQ][E0F]/g, 'DE');
-
-        let linhaSuperior = "FALHA NA LEITURA SUPERIOR";
-        let linhaInferior = "FALHA NA LEITURA INFERIOR";
-
-        const matchVal = textoTratadoGeral.match(/VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})/);
-        const matchDr = textoTratadoGeral.match(/DR\s?(\d{4})/);
-        const matchLsp = textoTratadoGeral.match(/LSP\s?(\d{11,15})/);
-        const matchDe = textoTratadoGeral.match(/DE\s?(\d{4})/);
-
-        if (matchVal && matchDr) {
-            linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]} DR${matchDr[1]}`;
-        } else if (matchVal) {
-            linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]}`;
+        while (n--) {
+            arrayU8[n] = stringBytes.charCodeAt(n);
         }
+        
+        const arquivoBlob = new Blob([arrayU8], { type: dadosMime });
 
-        if (matchLsp && matchDe) {
-            linhaInferior = `LSP${matchLsp[1]} DE${matchDe[1]}`;
-        } else if (matchLsp) {
-            linhaInferior = `LSP${matchLsp[1]}`;
-        } else {
-            let blocoNumeros = textoTratadoGeral.replace(/\s/g, '').match(/\d{11,15}/);
-            if (blocoNumeros) linhaInferior = `LSP${blocoNumeros[0]}`;
-        }
+        // 2. ESTRUTURAÇÃO: Monta o formulário multipart exigido pela API
+        const dadosEnvio = new FormData();
+        // Enviamos o Blob fingindo ser um arquivo chamado 'foto_lote.jpg'
+        dadosEnvio.append("file", arquivoBlob, "foto_lote.jpg"); 
+        dadosEnvio.append("language", "por");
+        dadosEnvio.append("isOverlayRequired", "false");
+        dadosEnvio.append("scale", "true");
+        dadosEnvio.append("OCREngine", "2"); 
 
-        if (inputSup) inputSup.value = linhaSuperior;
-        if (inputInf) inputInf.value = linhaInferior;
-    })
-    .catch(err => {
-        console.error("Erro capturado no catch do processo:", err);
+        const URL_ENDPOINT_CORRETO = "https://ocr.space";
+
+        // 3. REQUISIÇÃO: Envio nativo limpo
+        fetch(URL_ENDPOINT_CORRETO, {
+            method: "POST",
+            headers: { 
+                "apikey": OCR_SPACE_KEY
+                // ATENÇÃO: Deixe sem 'Content-Type'. O navegador gera o cabeçalho correto e evita o CORS.
+            },
+            body: dadosEnvio
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Resposta inválida do servidor: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(result => {
+            if (result.IsErroredOnProcessing || !result.ParsedResults) {
+                throw new Error(result.ErrorMessage || "Erro ao processar imagem na nuvem.");
+            }
+
+            const textoCru = result.ParsedResults[0]?.ParsedText || "";
+            console.log("Texto coletado da nuvem com sucesso:", textoCru);
+
+            if (!textoCru || textoCru.trim().length < 3) {
+                throw new Error("A nuvem processou a foto, mas não detectou nenhuma palavra legível.");
+            }
+
+            let textoTratadoGeral = textoCru.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+            
+            textoTratadoGeral = textoTratadoGeral
+                .replace(/WAL/g, 'VAL')
+                .replace(/WENC/g, 'VENC')
+                .replace(/[08OQ]R\s?/g, 'DR')
+                .replace(/[S5]ET/g, 'SET')
+                .replace(/[L1I|][S5][PDB]/g, 'LSP')
+                .replace(/[D0OQ][E0F]/g, 'DE');
+
+            let linhaSuperior = "FALHA NA LEITURA SUPERIOR";
+            let linhaInferior = "FALHA NA LEITURA INFERIOR";
+
+            const matchVal = textoTratadoGeral.match(/VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})/);
+            const matchDr = textoTratadoGeral.match(/DR\s?(\d{4})/);
+            const matchLsp = textoTratadoGeral.match(/LSP\s?(\d{11,15})/);
+            const matchDe = textoTratadoGeral.match(/DE\s?(\d{4})/);
+
+            if (matchVal && matchDr) {
+                linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]} DR${matchDr[1]}`;
+            } else if (matchVal) {
+                linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]}`;
+            }
+
+            if (matchLsp && matchDe) {
+                linhaInferior = `LSP${matchLsp[1]} DE${matchDe[1]}`;
+            } else if (matchLsp) {
+                linhaInferior = `LSP${matchLsp[1]}`;
+            } else {
+                let blocoNumeros = textoTratadoGeral.replace(/\s/g, '').match(/\d{11,15}/);
+                if (blocoNumeros) linhaInferior = `LSP${blocoNumeros[0]}`;
+            }
+
+            if (inputSup) inputSup.value = linhaSuperior;
+            if (inputInf) inputInf.value = linhaInferior;
+        })
+        .catch(err => {
+            console.error("Erro capturado no catch do processo:", err);
+            if (inputSup) inputSup.value = "";
+            if (inputInf) inputInf.value = "";
+            alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
+        });
+
+    } catch (erroConversao) {
+        console.error("Erro ao converter string Base64:", erroConversao);
         if (inputSup) inputSup.value = "";
         if (inputInf) inputInf.value = "";
-        alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
-    });
+        alert("Erro no formato da imagem capturada. Digite manualmente.");
+    }
 };
 
 // ========================================================
