@@ -334,7 +334,7 @@ function processarOcrLote(rawBase64) {
     if (inputInf) inputInf.value = "Conectando ao Servidor...";
 
     // Coloque a sua chave obtida por e-mail aqui
-    const OCR_SPACE_KEY = "SUA_CHAVE_DO_EMAIL_AQUI"; 
+    const OCR_SPACE_KEY = "K84567120588957"; 
 
     // URLSearchParams evita requisições complexas (OPTIONS/Preflight), eliminando o bloqueio de CORS simples
     const dadosEnvio = new URLSearchParams();
