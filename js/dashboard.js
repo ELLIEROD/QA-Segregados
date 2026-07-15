@@ -321,12 +321,8 @@ function dispararCapturaFoto() {
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
-// ========================================================
-// PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
-// ========================================================
-
 /**
- * Processamento OCR via API Gratuita (OCR.space) - Suporta fontes pontilhadas e corrigido contra CORS
+ * Processamento OCR via API Gratuita (OCR.space) - PWA Clean Version
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
@@ -334,50 +330,147 @@ function processarOcrLote(rawBase64) {
     const inputSup = document.getElementById('prod-lote-sup');
     const inputInf = document.getElementById('prod-lote-inf');
     
-    if (inputSup) inputSup.value = "Analisando Retorno...";
-    if (inputInf) inputInf.value = "Analisando Retorno...";
+    if (inputSup) inputSup.value = "Conectando ao Servidor...";
+    if (inputInf) inputInf.value = "Conectando ao Servidor...";
 
-    // Coloque a sua chave do e-mail aqui
-    const OCR_SPACE_KEY = "K84567120588957"; 
+    // Coloque a sua chave obtida por e-mail aqui
+    const OCR_SPACE_KEY = "SUA_CHAVE_DO_EMAIL_AQUI"; 
 
-    const dadosFormulario = new URLSearchParams();
-    dadosFormulario.append("base64Image", rawBase64);
-    dadosFormulario.append("language", "por");
-    dadosFormulario.append("isOverlayRequired", "false");
-    dadosFormulario.append("scale", "true");
-    dadosFormulario.append("OCREngine", "1"); // Mudado para o Motor 1 (Mais robusto para imagens inteiras)
+    // URLSearchParams evita requisições complexas (OPTIONS/Preflight), eliminando o bloqueio de CORS simples
+    const dadosEnvio = new URLSearchParams();
+    dadosEnvio.append("base64Image", rawBase64);
+    dadosEnvio.append("language", "por");
+    dadosEnvio.append("isOverlayRequired", "false");
+    dadosEnvio.append("scale", "true");
+    dadosEnvio.append("OCREngine", "2"); 
 
-    fetch("https://ocr.space", {
+    const URL_ENDPOINT_CORRETO = "https://ocr.space";
+
+    fetch(URL_ENDPOINT_CORRETO, {
         method: "POST",
         headers: { 
             "apikey": OCR_SPACE_KEY,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded" // Tipo de conteúdo simples aceito pela API
         },
-        body: dadosFormulario.toString()
+        body: dadosEnvio.toString()
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Resposta inválida do servidor: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(result => {
-        // Alerta 1: Verifica se a API respondeu com sucesso estrutural
-        alert("API Respondeu! Sucesso: " + (!result.IsErroredOnProcessing));
-        
-        const textoCru = result.ParsedResults?.[0]?.ParsedText || "";
-        
-        // Alerta 2: Mostra exatamente o que a API leu, sem nenhum filtro ou limpeza
-        alert("TEXTO BRUTO DA NUVEM:\n" + (textoCru ? textoCru : "[NENHUM TEXTO DETECTADO]"));
-
-        if (!textoCru) {
-            if (inputSup) inputSup.value = "IMAGEM EM BRANCO PARA A API";
-            if (inputInf) inputInf.value = "IMAGEM EM BRANCO PARA A API";
-            return;
+        if (result.IsErroredOnProcessing || !result.ParsedResults) {
+            throw new Error(result.ErrorMessage || "Erro ao processar imagem na nuvem.");
         }
 
-        // Preenche os campos com o texto bruto temporariamente para você analisar
-        if (inputSup) inputSup.value = textoCru.substring(0, 30);
-        if (inputInf) inputInf.value = textoCru.substring(30, 60);
+        const textoCru = result.ParsedResults[0]?.ParsedText || "";
+        console.log("Texto coletado da nuvem com sucesso:", textoCru);
+
+        if (!textoCru || textoCru.trim().length < 3) {
+            throw new Error("A nuvem processou a foto, mas não detectou nenhuma palavra legível.");
+        }
+
+        let textoTratadoGeral = textoCru.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+        
+        textoTratadoGeral = textoTratadoGeral
+            .replace(/WAL/g, 'VAL')
+            .replace(/WENC/g, 'VENC')
+            .replace(/[08OQ]R\s?/g, 'DR')
+            .replace(/[S5]ET/g, 'SET')
+            .replace(/[L1I|][S5][PDB]/g, 'LSP')
+            .replace(/[D0OQ][E0F]/g, 'DE');
+
+        let linhaSuperior = "FALHA NA LEITURA SUPERIOR";
+        let linhaInferior = "FALHA NA LEITURA INFERIOR";
+
+        const matchVal = textoTratadoGeral.match(/VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})/);
+        const matchDr = textoTratadoGeral.match(/DR\s?(\d{4})/);
+        const matchLsp = textoTratadoGeral.match(/LSP\s?(\d{11,15})/);
+        const matchDe = textoTratadoGeral.match(/DE\s?(\d{4})/);
+
+        if (matchVal && matchDr) {
+            linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]} DR${matchDr[1]}`;
+        } else if (matchVal) {
+            linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]}`;
+        }
+
+        if (matchLsp && matchDe) {
+            linhaInferior = `LSP${matchLsp[1]} DE${matchDe[1]}`;
+        } else if (matchLsp) {
+            linhaInferior = `LSP${matchLsp[1]}`;
+        } else {
+            let blocoNumeros = textoTratadoGeral.replace(/\s/g, '').match(/\d{11,15}/);
+            if (blocoNumeros) linhaInferior = `LSP${blocoNumeros[0]}`;
+        }
+
+        if (inputSup) inputSup.value = linhaSuperior;
+        if (inputInf) inputInf.value = linhaInferior;
     })
     .catch(err => {
-        alert("Erro crítico no Fetch: " + err.message);
+        console.error("Erro capturado no catch do processo:", err);
+        if (inputSup) inputSup.value = "";
+        if (inputInf) inputInf.value = "";
+        alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
     });
+}
+
+/**
+ * Processa e garante a retenção da Foto de Evidência com CSS corrigido
+ */
+function processarFotoEvidencia(rawBase64) {
+    if (!rawBase64) return;
+
+    const imgPreviewPadrao = document.getElementById('prod-foto-preview');
+    const containerPreviewPadrao = document.getElementById('prod-preview-container');
+
+    if (imgPreviewPadrao && containerPreviewPadrao) {
+        imgPreviewPadrao.src = rawBase64;
+        containerPreviewPadrao.classList.remove('hidden');
+    }
+
+    let inputHiddenFoto = document.getElementById('prod-foto-base64') || document.getElementById('foto-evidencia-base64');
+    if (!inputHiddenFoto) {
+        inputHiddenFoto = document.createElement('input');
+        inputHiddenFoto.type = 'hidden';
+        inputHiddenFoto.id = 'prod-foto-base64';
+        document.getElementById('form-segregacao')?.appendChild(inputHiddenFoto);
+    }
+    inputHiddenFoto.value = rawBase64;
+
+    let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
+    if (!previewSeguranca) {
+        previewSeguranca = document.createElement('div');
+        previewSeguranca.id = 'preview-seguranca-dinamico';
+        previewSeguranca.style.cssText = "margin: 15px auto; padding: 12px; border: 2px dashed #2563eb; background: #f8fafc; border-radius: 8px; text-align: center; max-width: 100%; box-sizing: border-box; clear: both;";
+        previewSeguranca.innerHTML = `
+            <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold; font-size: 13px; display: block;">✓ Foto da Evidência Capturada</p>
+            <div style="width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; display: flex; justify-content: center; align-items: center; background: #000;">
+                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block; margin: 0 auto;"/>
+            </div>
+        `;
+        
+        let areaForm = document.getElementById('form-segregacao') || document.querySelector('form');
+        if (areaForm) {
+            let btnSubmit = areaForm.querySelector('button[type="submit"]') || areaForm.lastChild;
+            areaForm.insertBefore(previewSeguranca, btnSubmit);
+        }
+    } else {
+        const imgDinamica = document.getElementById('img-seguranca-dinamica');
+        if (imgDinamica) imgDinamica.src = rawBase64;
+    }
+}
+
+/**
+ * Processa a Foto de Perfil
+ */
+function processarFotoPerfil(rawBase64) {
+    if (!rawBase64) return;
+    const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
+    if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
+    const imgPerfil = document.getElementById('avatar-perfil-img');
+    if (imgPerfil) imgPerfil.src = rawBase64;
 }
 
 // ==========================================
