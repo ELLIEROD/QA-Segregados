@@ -321,15 +321,12 @@ function dispararCapturaFoto() {
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
-/**
- * Processamento OCR preciso integrado com o Azure Vision AI
- */
 // ========================================================
 // PROCESSADORES DE MÍDIA DE ACORDO COM O CONTEXTO DA CÂMERA
 // ========================================================
 
 /**
- * Processamento OCR via API Gratuita (OCR.space) - Suporta fontes pontilhadas
+ * Processamento OCR via API Gratuita (OCR.space) - Suporta fontes pontilhadas e corrigido contra CORS
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
@@ -340,38 +337,44 @@ function processarOcrLote(rawBase64) {
     if (inputSup) inputSup.value = "Processando Linha Superior...";
     if (inputInf) inputInf.value = "Processando Linha Inferior...";
 
-    // CADASTRO GRATUITO EM: https://ocr.space (Envia a chave no seu e-mail na hora)
-    // Se deixar 'helloworld', funciona, mas tem limite estrito de testes por hora.
-    const OCR_SPACE_KEY = "K84567120588957"; 
+    // Use a sua chave obtida por e-mail aqui. Se mantiver 'helloworld', use apenas para testes rápidos.
+    const OCR_SPACE_KEY = "helloworld"; 
 
-    // Prepara os dados para envio via FormData (Formato exigido pela API)
-    const formData = new FormData();
-    formData.append("base64Image", rawBase64); // Aceita seu base64 direto sem conversão
-    formData.append("language", "por");
-    formData.append("isOverlayRequired", "false");
-    formData.append("scale", "true"); // Ativa o redimensionamento automático na nuvem
-    formData.append("OCREngine", "2"); // Motor 2 é especializado em textos curtos, números e etiquetas
+    // Criação manual do formato x-www-form-urlencoded para evitar disparar requisições OPTIONS/Preflight de CORS
+    const dadosFormulario = new URLSearchParams();
+    dadosFormulario.append("base64Image", rawBase64);
+    dadosFormulario.append("language", "por");
+    dadosFormulario.append("isOverlayRequired", "false");
+    dadosFormulario.append("scale", "true");
+    dadosFormulario.append("OCREngine", "2");
 
+    // URL TOTALMENTE CORRIGIDA PARA O ENDPOINT DA API (Evita bater na home e dar erro de CORS)
     fetch("https://ocr.space", {
         method: "POST",
-        headers: { "apikey": OCR_SPACE_KEY },
-        body: formData
+        headers: { 
+            "apikey": OCR_SPACE_KEY,
+            "Content-Type": "application/x-www-form-urlencoded" // Alinhado com o URLSearchParams para burlar travas de CORS simples
+        },
+        body: dadosFormulario.toString()
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Erro HTTP no servidor da API: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(result => {
-        if (result.IsErroredOnProcessing) {
-            throw new Error(result.ErrorMessage);
+        if (result.IsErroredOnProcessing || !result.ParsedResults) {
+            throw new Error(result.ErrorMessage || "Erro interno de processamento na nuvem.");
         }
 
-        // Pega o texto bruto devolvido pela nuvem
-        const textoCru = result.ParsedResults?.[0]?.ParsedText || "";
-        console.log("Texto extraído pela Nuvem Gratuita:", textoCru);
+        const textoCru = result.ParsedResults[0]?.ParsedText || "";
+        console.log("Texto extraído com sucesso pela Nuvem:", textoCru);
 
         if (!textoCru || textoCru.trim().length < 5) {
-            throw new Error("Texto insuficiente detectado.");
+            throw new Error("Texto insuficiente detectado na imagem.");
         }
 
-        // Limpeza padrão de caracteres bizarros
         let textoTratadoGeral = textoCru.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
         
         textoTratadoGeral = textoTratadoGeral
@@ -385,7 +388,6 @@ function processarOcrLote(rawBase64) {
         let linhaSuperior = "FALHA NA LEITURA SUPERIOR";
         let linhaInferior = "FALHA NA LEITURA INFERIOR";
 
-        // Captura inteligente das variáveis usando módulos independentes de Regex
         const matchVal = textoTratadoGeral.match(/VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})/);
         const matchDr = textoTratadoGeral.match(/DR\s?(\d{4})/);
         const matchLsp = textoTratadoGeral.match(/LSP\s?(\d{11,15})/);
@@ -410,7 +412,7 @@ function processarOcrLote(rawBase64) {
         if (inputInf) inputInf.value = linhaInferior;
     })
     .catch(err => {
-        console.error("Erro no OCR Space:", err);
+        console.error("Erro detalhado no fluxo do OCR Space:", err);
         if (inputSup) inputSup.value = "";
         if (inputInf) inputInf.value = "";
         alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
