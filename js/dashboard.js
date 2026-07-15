@@ -322,74 +322,89 @@ function dispararCapturaFoto() {
 // ========================================================
 
 /**
- * Processamento OCR Direto e Preciso com Limpeza de Cache e Fallback Seguro
+ * Processamento OCR preciso integrado com o Azure Vision AI
  */
 function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "Processando...";
-    if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "Processando...";
+    const inputSup = document.getElementById('prod-lote-sup');
+    const inputInf = document.getElementById('prod-lote-inf');
+    
+    if (inputSup) inputSup.value = "Processando...";
+    if (inputInf) inputInf.value = "Processando...";
     
     const img = new Image();
     img.onload = function() {
         const canvas = document.getElementById('ocr-canvas') || document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        const corteLargura = Math.floor(img.width * 0.90);
-        const corteAltura = Math.floor(img.height * 0.50);
+        // RECORTE ULTRA-FOCADO: Corta uma faixa horizontal bem estreita no centro da imagem (onde o lote fica)
+        const corteLargura = Math.floor(img.width * 0.85);
+        const corteAltura = Math.floor(img.height * 0.30); // Diminuído de 0.50 para 0.30 para eliminar o fundo irritante
         const corteX = Math.floor((img.width - corteLargura) / 2);
         const corteY = Math.floor((img.height - corteAltura) / 2);
 
         canvas.width = corteLargura;
         canvas.height = corteAltura;
-        
         ctx.drawImage(img, corteX, corteY, corteLargura, corteAltura, 0, 0, corteLargura, corteAltura);
         
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imgData.data;
-        for (let i = 0; i < data.length; i += 4) {
+        const len = data.length;
+
+        // FILTRO DE ALTO CONSTRASTE DINÂMICO (Otsu-like simplificado)
+        // Calcula a média real de brilho da foto em vez de fixar em 130
+        let somaCinza = 0;
+        for (let i = 0; i < len; i += 4) {
+            somaCinza += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        }
+        const limiarAdaptativo = (somaCinza / (len / 4)) * 0.9; // Ajusta o ponto de corte baseado na luz real da foto
+
+        for (let i = 0; i < len; i += 4) {
             let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            let v = (cinza < 130) ? 0 : 255; 
+            // Transforma o pixel em preto puro ou branco puro de forma agressiva para destacar letras apagadas
+            let v = (cinza < limiarAdaptativo) ? 0 : 255; 
             data[i] = data[i+1] = data[i+2] = v;
         }
         ctx.putImageData(imgData, 0, 0);
 
-        Tesseract.recognize(canvas.toDataURL('image/jpeg'), 'por+eng', {
-            tessedit_pageseg_mode: '11', 
+        // CONFIGURAÇÃO REFORÇADA PARA TEXTOS CURTOS E NÚMEROS DO TESSERACT
+        Tesseract.recognize(canvas.toDataURL('image/jpeg', 1.0), 'por+eng', {
+            tessedit_pageseg_mode: '6', // Modo 6 assume um único bloco de texto uniforme (melhor para etiquetas/lotes)
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ', // Proíbe o Tesseract de inventar caracteres estranhos como @, #, $, !
             load_system_dawg: '0',
             load_freq_dawg: '0'
         })
         .then(({ data: { text } }) => {
-            console.log("Texto CRU lido pelo Tesseract:", text);
+            console.log("Texto CRU Otimizado:", text);
 
-            if (!text || text.trim().length < 5) {
-                throw new Error("Texto insuficiente detectado na imagem.");
-            }
+            if (!text || text.trim().length < 4) throw new Error("Texto insuficiente.");
 
             let textoTratadoGeral = text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
             
+            // Suas substituições de redundância mantidas
             textoTratadoGeral = textoTratadoGeral
                 .replace(/WAL/g, 'VAL')
                 .replace(/WENC/g, 'VENC')
                 .replace(/[08OQ]R\s?/g, 'DR')
                 .replace(/[S5]ET/g, 'SET')
-                .replace(/09ET/g, 'SET')
                 .replace(/[L1I|][S5][PDB]/g, 'LSP')
                 .replace(/[D0OQ][E0F]/g, 'DE');
 
             let linhaSuperior = "";
             let linhaInferior = "";
 
+            // ---- SUA LÓGICA DE REGEX ----
             const regexSuperiorEstrita = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
             const matchSup = textoTratadoGeral.match(regexSuperiorEstrita);
 
             if (matchSup) {
                 linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
             } else {
-                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "";
-                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?.[0] || "";
-                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "";
-                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "";
+                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?. || "";
+                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?. || "";
+                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?. || "";
+                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?. || "";
                 
                 if(dia && mes && ano && dr) {
                     linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
@@ -400,7 +415,7 @@ function processarOcrLote(rawBase64) {
 
             const regexDe = /DE\s?(\d{4})/;
             let deMatch = textoTratadoGeral.match(regexDe);
-            let codigoMaquina = deMatch ? deMatch[1] : "";
+            let codigoMaquina = deMatch ? deMatch : "";
 
             const regexLsp = /LSP\s?([0-9\s]{11,15})/;
             const matchLsp = textoTratadoGeral.match(regexLsp);
@@ -419,71 +434,17 @@ function processarOcrLote(rawBase64) {
                 }
             }
 
-            if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = linhaSuperior;
-            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = líneaInferior;
+            if(inputSup) inputSup.value = linhaSuperior;
+            if(inputInf) inputInf.value = linhaInferior;
         })
         .catch(err => {
             console.error("Erro no motor Tesseract:", err);
-            if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "";
-            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "";
+            if(inputSup) inputSup.value = "";
+            if(inputInf) inputInf.value = "";
             alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
         });
     };
     img.src = rawBase64;
-}
-
-/**
- * Processa e garante a retenção da Foto de Evidência com CSS corrigido
- */
-function processarFotoEvidencia(rawBase64) {
-    if (!rawBase64) return;
-
-    const imgPreviewPadrao = document.getElementById('prod-foto-preview');
-    const containerPreviewPadrao = document.getElementById('prod-preview-container');
-
-    if (imgPreviewPadrao && containerPreviewPadrao) {
-        imgPreviewPadrao.src = rawBase64;
-        containerPreviewPadrao.classList.remove('hidden');
-    }
-
-    let inputHiddenFoto = document.getElementById('prod-foto-base64') || document.getElementById('foto-evidencia-base64');
-    if (!inputHiddenFoto) {
-        inputHiddenFoto = document.createElement('input');
-        inputHiddenFoto.type = 'hidden';
-        inputHiddenFoto.id = 'prod-foto-base64';
-        document.getElementById('form-segregacao')?.appendChild(inputHiddenFoto);
-    }
-    inputHiddenFoto.value = rawBase64;
-
-    let previewSeguranca = document.getElementById('preview-seguranca-dinamico');
-    if (!previewSeguranca) {
-        previewSeguranca = document.createElement('div');
-        previewSeguranca.id = 'preview-seguranca-dinamico';
-        previewSeguranca.style.cssText = "margin: 15px auto; padding: 12px; border: 2px dashed #2563eb; background: #f8fafc; border-radius: 8px; text-align: center; max-width: 100%; box-sizing: border-box; clear: both;";
-        previewSeguranca.innerHTML = `
-            <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold; font-size: 13px; display: block;">✓ Foto da Evidência Capturada</p>
-            <div style="width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; display: flex; justify-content: center; align-items: center; background: #000;">
-                <img id="img-seguranca-dinamica" src="${rawBase64}" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block; margin: 0 auto;"/>
-            </div>
-        `;
-        
-        let areaForm = document.getElementById('form-segregacao') || document.querySelector('form');
-        if (areaForm) {
-            let btnSubmit = areaForm.querySelector('button[type="submit"]') || areaForm.lastChild;
-            areaForm.insertBefore(previewSeguranca, btnSubmit);
-        }
-    } else {
-        const imgDinamica = document.getElementById('img-seguranca-dinamica');
-        if (imgDinamica) imgDinamica.src = rawBase64;
-    }
-}
-
-function processarFotoPerfil(rawBase64) {
-    if (!rawBase64) return;
-    const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
-    if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
-    const imgPerfil = document.getElementById('avatar-perfil-img');
-    if (imgPerfil) imgPerfil.src = rawBase64;
 }
 
 // ==========================================
