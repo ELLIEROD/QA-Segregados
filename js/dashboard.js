@@ -340,7 +340,7 @@ function processarOcrLote(rawBase64) {
         
         // RECORTE ULTRA-FOCADO: Corta uma faixa horizontal bem estreita no centro da imagem (onde o lote fica)
         const corteLargura = Math.floor(img.width * 0.85);
-        const corteAltura = Math.floor(img.height * 0.30); // Diminuído de 0.50 para 0.30 para eliminar o fundo irritante
+        const corteAltura = Math.floor(img.height * 0.30); 
         const corteX = Math.floor((img.width - corteLargura) / 2);
         const corteY = Math.floor((img.height - corteAltura) / 2);
 
@@ -352,26 +352,24 @@ function processarOcrLote(rawBase64) {
         const data = imgData.data;
         const len = data.length;
 
-        // FILTRO DE ALTO CONSTRASTE DINÂMICO (Otsu-like simplificado)
-        // Calcula a média real de brilho da foto em vez de fixar em 130
+        // FILTRO DE ALTO CONSTRASTE DINÂMICO
         let somaCinza = 0;
         for (let i = 0; i < len; i += 4) {
             somaCinza += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
         }
-        const limiarAdaptativo = (somaCinza / (len / 4)) * 0.9; // Ajusta o ponto de corte baseado na luz real da foto
+        const limiarAdaptativo = (somaCinza / (len / 4)) * 0.9; 
 
         for (let i = 0; i < len; i += 4) {
             let cinza = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            // Transforma o pixel em preto puro ou branco puro de forma agressiva para destacar letras apagadas
             let v = (cinza < limiarAdaptativo) ? 0 : 255; 
             data[i] = data[i+1] = data[i+2] = v;
         }
         ctx.putImageData(imgData, 0, 0);
 
-        // CONFIGURAÇÃO REFORÇADA PARA TEXTOS CURTOS E NÚMEROS DO TESSERACT
+        // CONFIGURAÇÃO REFORÇADA PARA TESSERACT
         Tesseract.recognize(canvas.toDataURL('image/jpeg', 1.0), 'por+eng', {
-            tessedit_pageseg_mode: '6', // Modo 6 assume um único bloco de texto uniforme (melhor para etiquetas/lotes)
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ', // Proíbe o Tesseract de inventar caracteres estranhos como @, #, $, !
+            tessedit_pageseg_mode: '6', 
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ', 
             load_system_dawg: '0',
             load_freq_dawg: '0'
         })
@@ -382,7 +380,6 @@ function processarOcrLote(rawBase64) {
 
             let textoTratadoGeral = text.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
             
-            // Suas substituições de redundância mantidas
             textoTratadoGeral = textoTratadoGeral
                 .replace(/WAL/g, 'VAL')
                 .replace(/WENC/g, 'VENC')
@@ -394,17 +391,17 @@ function processarOcrLote(rawBase64) {
             let linhaSuperior = "";
             let linhaInferior = "";
 
-            // ---- SUA LÓGICA DE REGEX ----
+            // ---- LÓGICA DE REGEX CORRIGIDA ----
             const regexSuperiorEstrita = /VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})\s?DR\s?(\d{4})/;
             const matchSup = textoTratadoGeral.match(regexSuperiorEstrita);
 
             if (matchSup) {
                 linhaSuperior = `VAL${matchSup[1]} ${matchSup[2]} ${matchSup[3]} DR${matchSup[4]}`;
             } else {
-                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?. || "";
-                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?. || "";
-                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?. || "";
-                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?. || "";
+                let dia = textoTratadoGeral.match(/VAL\s?(\d{2})/)?.[1] || "";
+                let mes = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/)?.[0] || "";
+                let ano = textoTratadoGeral.match(/(JAN|FEB|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s?(\d{2})/)?.[2] || "";
+                let dr = textoTratadoGeral.match(/DR\s?(\d{4})/)?.[1] || "";
                 
                 if(dia && mes && ano && dr) {
                     linhaSuperior = `VAL${dia} ${mes} ${ano} DR${dr}`;
@@ -415,7 +412,7 @@ function processarOcrLote(rawBase64) {
 
             const regexDe = /DE\s?(\d{4})/;
             let deMatch = textoTratadoGeral.match(regexDe);
-            let codigoMaquina = deMatch ? deMatch : "";
+            let codigoMaquina = deMatch ? deMatch[1] : "";
 
             const regexLsp = /LSP\s?([0-9\s]{11,15})/;
             const matchLsp = textoTratadoGeral.match(regexLsp);
