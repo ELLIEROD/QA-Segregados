@@ -338,7 +338,7 @@ function processarOcrLote(rawBase64) {
     if (inputInf) inputInf.value = "Processando Linha Inferior...";
 
     // Use a sua chave obtida por e-mail aqui. Se mantiver 'helloworld', use apenas para testes rápidos.
-    const OCR_SPACE_KEY = "helloworld"; 
+    const OCR_SPACE_KEY = "K84567120588957"; 
 
     // Criação manual do formato x-www-form-urlencoded para evitar disparar requisições OPTIONS/Preflight de CORS
     const dadosFormulario = new URLSearchParams();
