@@ -170,6 +170,8 @@ window.calcularQuantidadeTotal = function() {
 window.toggleLote = function(checkbox) {
     const sup = document.getElementById('prod-lote-sup');
     const inf = document.getElementById('prod-lote-inf');
+    const supPreview = document.getElementById('prod-lote-sup-preview');
+    const infPreview = document.getElementById('prod-lote-inf-preview');
     if (checkbox.checked) {
         sup.value = "SEM LOTE";
         inf.value = "APARAS / REFUGO";
@@ -181,6 +183,8 @@ window.toggleLote = function(checkbox) {
         sup.disabled = false;
         inf.disabled = false;
     }
+    if (supPreview) supPreview.innerHTML = "";
+    if (infPreview) infPreview.innerHTML = "";
 }
 
 // ==========================================
@@ -322,137 +326,254 @@ function dispararCapturaFoto() {
 // ========================================================
 
 /**
- * Processamento OCR via API Gratuita (OCR.space) - Versão Definitiva Sem Bloqueio de CORS
+ * Processamento OCR Direto e Preciso com Limpeza de Cache e Fallback Seguro
  */
-/**
- * Processamento OCR via API Gratuita (OCR.space) - Roteado via Proxy Seguro para eliminar CORS do GitHub
- */
-/**
- * Processamento OCR via API Gratuita (OCR.space) - Conversão Binária Nativa Sem Proxy
- */
-window.processarOcrLote = function(rawBase64) {
+function processarOcrLote(rawBase64) {
     if (!rawBase64) return;
     
-    const inputSup = document.getElementById('prod-lote-sup');
-    const inputInf = document.getElementById('prod-lote-inf');
+    if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "Processando...";
+    if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "Processando...";
+    if(document.getElementById('prod-lote-sup-preview')) document.getElementById('prod-lote-sup-preview').innerHTML = "";
+    if(document.getElementById('prod-lote-inf-preview')) document.getElementById('prod-lote-inf-preview').innerHTML = "";
     
-    if (inputSup) inputSup.value = "Processando Imagem...";
-    if (inputInf) inputInf.value = "Processando Imagem...";
+    const img = new Image();
+    img.onload = function() {
+        // Prepara uma tira (recorte) da imagem já em tons de cinza, com
+        // desruído e contraste esticado, pronta para o Tesseract.
+        function prepararTira(cropX, cropY, cropW, cropH) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const escala = 3;
+            canvas.width = Math.floor(cropW * escala);
+            canvas.height = Math.floor(cropH * escala);
 
-    // Insira sua chave privada recebida por e-mail aqui
-    const OCR_SPACE_KEY = "K84567120588957"; 
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
 
-    try {
-        // 1. CONVERSÃO: Transforma a String Base64 em um Arquivo Binário (Blob) físico
-        const partes = rawBase64.split(',');
-        const dadosMime = partes[0].match(/:(.*?);/)[1];
-        const stringBytes = atob(partes[1]);
-        let n = stringBytes.length;
-        const arrayU8 = new Uint8Array(n);
-        
-        while (n--) {
-            arrayU8[n] = stringBytes.charCodeAt(n);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            const largura = canvas.width;
+            const altura = canvas.height;
+
+            const cinzaOriginal = new Uint8ClampedArray(data.length / 4);
+            for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+                cinzaOriginal[p] = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            }
+
+            // Desruído (box blur 3x3): funde ruído de JPEG/moiré e os pontinhos
+            // da impressão dot-matrix em traços mais sólidos.
+            const cinzaPorPixel = new Uint8ClampedArray(cinzaOriginal.length);
+            for (let y = 0; y < altura; y++) {
+                for (let x = 0; x < largura; x++) {
+                    let soma = 0, qtd = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const ny = y + dy, nx = x + dx;
+                            if (ny >= 0 && ny < altura && nx >= 0 && nx < largura) {
+                                soma += cinzaOriginal[ny * largura + nx];
+                                qtd++;
+                            }
+                        }
+                    }
+                    cinzaPorPixel[y * largura + x] = Math.round(soma / qtd);
+                }
+            }
+
+            // Alongamento de contraste por percentil (2%-98%), resistente a
+            // reflexos de luz, mantendo tons de cinza contínuos (sem binarizar).
+            const histograma = new Array(256).fill(0);
+            for (let p = 0; p < cinzaPorPixel.length; p++) histograma[cinzaPorPixel[p]]++;
+            const total = cinzaPorPixel.length;
+            let acumulado = 0, p2 = 0, p98 = 255;
+            for (let t = 0; t < 256; t++) {
+                acumulado += histograma[t];
+                if (acumulado >= total * 0.02) { p2 = t; break; }
+            }
+            acumulado = 0;
+            for (let t = 255; t >= 0; t--) {
+                acumulado += histograma[t];
+                if (acumulado >= total * 0.02) { p98 = t; break; }
+            }
+            const faixa = Math.max(1, p98 - p2);
+
+            for (let p = 0; p < cinzaPorPixel.length; p++) {
+                const esticado = Math.round(((cinzaPorPixel[p] - p2) / faixa) * 255);
+                const v = Math.min(255, Math.max(0, esticado));
+                const i = p * 4;
+                data[i] = data[i + 1] = data[i + 2] = v;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            return canvas.toDataURL('image/jpeg');
         }
-        
-        const arquivoBlob = new Blob([arrayU8], { type: dadosMime });
 
-        // 2. ESTRUTURAÇÃO: Monta o formulário multipart exigido pela API
-        const dadosEnvio = new FormData();
-        // Enviamos o Blob fingindo ser um arquivo chamado 'foto_lote.jpg'
-        dadosEnvio.append("file", arquivoBlob, "foto_lote.jpg"); 
-        dadosEnvio.append("language", "por");
-        dadosEnvio.append("isOverlayRequired", "false");
-        dadosEnvio.append("scale", "true");
-        dadosEnvio.append("OCREngine", "2"); 
+        function limparTexto(t) {
+            return (t || "").toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+        }
 
-        const URL_ENDPOINT_CORRETO = "https://ocr.space";
+        const MESES = 'JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ';
+        const anoAtual2Digitos = String(new Date().getFullYear()).slice(-2);
 
-        // 3. REQUISIÇÃO: Envio nativo limpo
-        fetch(URL_ENDPOINT_CORRETO, {
-            method: "POST",
-            headers: { 
-                "apikey": OCR_SPACE_KEY
-                // ATENÇÃO: Deixe sem 'Content-Type'. O navegador gera o cabeçalho correto e evita o CORS.
-            },
-            body: dadosEnvio
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Resposta inválida do servidor: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(result => {
-            if (result.IsErroredOnProcessing || !result.ParsedResults) {
-                throw new Error(result.ErrorMessage || "Erro ao processar imagem na nuvem.");
-            }
+        // Gera o HTML da prévia: partes fixas em cinza, partes lidas com
+        // confiança em preto, partes não lidas/ inválidas sublinhadas em
+        // vermelho mostrando o menor valor válido usado como palpite.
+        function montarPreview(segmentos) {
+            return segmentos.map(seg => {
+                if (seg.tipo === 'fixo') {
+                    return `<span style="color:#94a3b8">${seg.valor}</span>`;
+                }
+                if (seg.valido) {
+                    return `<span style="color:#0f172a">${seg.valor}</span>`;
+                }
+                return `<span style="color:#dc2626;border-bottom:2px solid #dc2626" title="Não lido com confiança - confira este trecho">${seg.valor}</span>`;
+            }).join('');
+        }
 
-            const textoCru = result.ParsedResults[0]?.ParsedText || "";
-            console.log("Texto coletado da nuvem com sucesso:", textoCru);
+        function textoFinal(segmentos) {
+            return segmentos.map(s => s.valor).join('');
+        }
 
-            if (!textoCru || textoCru.trim().length < 3) {
-                throw new Error("A nuvem processou a foto, mas não detectou nenhuma palavra legível.");
-            }
+        // --- LINHA SUPERIOR (validade) — formato fixo, 16 caracteres:
+        // VAL(dia 01-31)(mês 3 letras PT)(ano 2 díg) DR(dia 01-31)(mês 01-12)
+        function analisarLinhaSuperior(texto) {
+            const t = texto.replace(/\s/g, '');
+            const reMes = new RegExp(MESES);
+            const mMes = t.match(reMes);
 
-            let textoTratadoGeral = textoCru.toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-            
-            textoTratadoGeral = textoTratadoGeral
-                .replace(/WAL/g, 'VAL')
-                .replace(/WENC/g, 'VENC')
-                .replace(/[08OQ]R\s?/g, 'DR')
-                .replace(/[S5]ET/g, 'SET')
-                .replace(/[L1I|][S5][PDB]/g, 'LSP')
-                .replace(/[D0OQ][E0F]/g, 'DE');
+            let dia = null, ano = null, drDia = null, drMes = null, mes = null;
 
-            let linhaSuperior = "FALHA NA LEITURA SUPERIOR";
-            let linhaInferior = "FALHA NA LEITURA INFERIOR";
+            if (mMes) {
+                mes = mMes[0];
+                const antes = t.slice(Math.max(0, mMes.index - 2), mMes.index);
+                const depois = t.slice(mMes.index + 3);
 
-            const matchVal = textoTratadoGeral.match(/VAL\s?(\d{2})\s?([A-Z]{3})\s?(\d{2})/);
-            const matchDr = textoTratadoGeral.match(/DR\s?(\d{4})/);
-            const matchLsp = textoTratadoGeral.match(/LSP\s?(\d{11,15})/);
-            const matchDe = textoTratadoGeral.match(/DE\s?(\d{4})/);
+                if (/^\d{2}$/.test(antes)) dia = antes;
 
-            if (matchVal && matchDr) {
-                linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]} DR${matchDr[1]}`;
-            } else if (matchVal) {
-                linhaSuperior = `VAL${matchVal[1]} ${matchVal[2]} ${matchVal[3]}`;
+                const mAno = depois.match(/^(\d{2})/);
+                if (mAno) ano = mAno[1];
+
+                // procura os 4 dígitos do código DR logo depois do ano, dentro
+                // de uma janela curta (tolera letras ilegíveis entre eles)
+                const restoAposAno = depois.slice((ano || '').length, (ano || '').length + 10);
+                const mDr = restoAposAno.match(/(\d{2})\D{0,3}(\d{2})/);
+                if (mDr) { drDia = mDr[1]; drMes = mDr[2]; }
             }
 
-            if (matchLsp && matchDe) {
-                linhaInferior = `LSP${matchLsp[1]} DE${matchDe[1]}`;
-            } else if (matchLsp) {
-                linhaInferior = `LSP${matchLsp[1]}`;
-            } else {
-                let blocoNumeros = textoTratadoGeral.replace(/\s/g, '').match(/\d{11,15}/);
-                if (blocoNumeros) linhaInferior = `LSP${blocoNumeros[0]}`;
+            return [
+                { tipo: 'fixo', valor: 'VAL' },
+                { tipo: 'var', valor: (dia && faixaOk(dia, 1, 31)) ? dia : '01', valido: !!(dia && faixaOk(dia, 1, 31)) },
+                { tipo: 'fixo', valor: ' ' },
+                { tipo: 'var', valor: mes || 'JAN', valido: !!mes },
+                { tipo: 'fixo', valor: ' ' },
+                { tipo: 'var', valor: ano || anoAtual2Digitos, valido: !!ano },
+                { tipo: 'fixo', valor: ' DR' },
+                { tipo: 'var', valor: (drDia && faixaOk(drDia, 1, 31)) ? drDia : '01', valido: !!(drDia && faixaOk(drDia, 1, 31)) },
+                { tipo: 'var', valor: (drMes && faixaOk(drMes, 1, 12)) ? drMes : '01', valido: !!(drMes && faixaOk(drMes, 1, 12)) }
+            ];
+        }
+
+        function faixaOk(strNum, min, max) {
+            if (!strNum || !/^\d+$/.test(strNum)) return false;
+            const n = parseInt(strNum, 10);
+            return n >= min && n <= max;
+        }
+
+        // --- LINHA INFERIOR (lote) — formato fixo desta unidade, 20 caracteres:
+        // LSP2(máquina 1-4)(juliano 001-365)(hora 00-23)(min 00-59)(código 01-06) DE(dia 01-31)(mês 01-12)
+        function analisarLinhaInferior(texto) {
+            const t = texto.replace(/\s/g, '');
+
+            let maquina = null, juliano = null, hora = null, minuto = null, codigo = null;
+            const mBloco = t.match(/\d{10,12}/);
+            if (mBloco) {
+                const b = mBloco[0];
+                maquina = b.slice(0, 1);
+                juliano = b.slice(1, 4);
+                hora = b.slice(4, 6);
+                minuto = b.slice(6, 8);
+                codigo = b.slice(8, 10);
             }
 
-            if (inputSup) inputSup.value = linhaSuperior;
-            if (inputInf) inputInf.value = linhaInferior;
+            let deDia = null, deMes = null;
+            const mDe = t.match(/[D0OQ][E3]\D{0,1}(\d{2})(\d{2})/);
+            if (mDe) { deDia = mDe[1]; deMes = mDe[2]; }
+
+            return [
+                { tipo: 'fixo', valor: 'LSP2' },
+                { tipo: 'var', valor: (maquina && faixaOk(maquina, 1, 4)) ? maquina : '1', valido: !!(maquina && faixaOk(maquina, 1, 4)) },
+                { tipo: 'var', valor: (juliano && faixaOk(juliano, 1, 365)) ? juliano : '001', valido: !!(juliano && faixaOk(juliano, 1, 365)) },
+                { tipo: 'var', valor: (hora && faixaOk(hora, 0, 23)) ? hora : '00', valido: !!(hora && faixaOk(hora, 0, 23)) },
+                { tipo: 'var', valor: (minuto && faixaOk(minuto, 0, 59)) ? minuto : '00', valido: !!(minuto && faixaOk(minuto, 0, 59)) },
+                { tipo: 'var', valor: (codigo && faixaOk(codigo, 1, 6)) ? codigo : '01', valido: !!(codigo && faixaOk(codigo, 1, 6)) },
+                { tipo: 'fixo', valor: ' DE' },
+                { tipo: 'var', valor: (deDia && faixaOk(deDia, 1, 31)) ? deDia : '01', valido: !!(deDia && faixaOk(deDia, 1, 31)) },
+                { tipo: 'var', valor: (deMes && faixaOk(deMes, 1, 12)) ? deMes : '01', valido: !!(deMes && faixaOk(deMes, 1, 12)) }
+            ];
+        }
+
+        const corteLargura = Math.floor(img.width * 0.90);
+        const corteAltura = Math.floor(img.height * 0.50);
+        const corteX = Math.floor((img.width - corteLargura) / 2);
+        const corteY = Math.floor((img.height - corteAltura) / 2);
+
+        // Divide o recorte em duas TIRAS (superior = validade, inferior = lote),
+        // com uma leve sobreposição para não cortar texto bem na fronteira entre
+        // as duas linhas. Cada tira é lida separadamente com PSM 7 (modo "uma
+        // única linha"), mais preciso que tentar ler as duas linhas juntas.
+        const alturaTira = Math.floor(corteAltura * 0.58);
+        const tiraSupY = corteY;
+        const tiraInfY = corteY + corteAltura - alturaTira;
+
+        const imgTiraSup = prepararTira(corteX, tiraSupY, corteLargura, alturaTira);
+        const imgTiraInf = prepararTira(corteX, tiraInfY, corteLargura, alturaTira);
+
+        const configOcr = {
+            tessedit_pageseg_mode: '7', // PSM 7 = uma única linha de texto
+            load_system_dawg: '0',
+            load_freq_dawg: '0'
+        };
+
+        Promise.all([
+            Tesseract.recognize(imgTiraSup, 'por+eng', configOcr),
+            Tesseract.recognize(imgTiraInf, 'por+eng', configOcr)
+        ])
+        .then(([resultadoSup, resultadoInf]) => {
+            const textoSupBruto = resultadoSup.data.text;
+            const textoInfBruto = resultadoInf.data.text;
+            console.log("Texto CRU lido (linha superior/validade):", textoSupBruto);
+            console.log("Texto CRU lido (linha inferior/lote):", textoInfBruto);
+
+            const textoSup = limparTexto(textoSupBruto);
+            const textoInf = limparTexto(textoInfBruto);
+
+            const segSup = analisarLinhaSuperior(textoSup);
+            const segInf = analisarLinhaInferior(textoInf);
+
+            const elSup = document.getElementById('prod-lote-sup');
+            const elInf = document.getElementById('prod-lote-inf');
+            const elSupPreview = document.getElementById('prod-lote-sup-preview');
+            const elInfPreview = document.getElementById('prod-lote-inf-preview');
+
+            if (elSup) elSup.value = textoFinal(segSup);
+            if (elInf) elInf.value = textoFinal(segInf);
+            if (elSupPreview) elSupPreview.innerHTML = montarPreview(segSup);
+            if (elInfPreview) elInfPreview.innerHTML = montarPreview(segInf);
         })
         .catch(err => {
-            console.error("Erro capturado no catch do processo:", err);
-            if (inputSup) inputSup.value = "";
-            if (inputInf) inputInf.value = "";
+            console.error("Erro no motor Tesseract:", err);
+            if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "";
+            if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "";
+            if(document.getElementById('prod-lote-sup-preview')) document.getElementById('prod-lote-sup-preview').innerHTML = "";
+            if(document.getElementById('prod-lote-inf-preview')) document.getElementById('prod-lote-inf-preview').innerHTML = "";
             alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
         });
-
-    } catch (erroConversao) {
-        console.error("Erro ao converter string Base64:", erroConversao);
-        if (inputSup) inputSup.value = "";
-        if (inputInf) inputInf.value = "";
-        alert("Erro no formato da imagem capturada. Digite manualmente.");
-    }
-};
-
-// ========================================================
-// 4.1 CAPTURA E RETENÇÃO DE FOTOS (EVIDÊNCIA E PERFIL)
-// ========================================================
+    };
+    img.src = rawBase64;
+}
 
 /**
- * Processa a Foto de Evidência e renderiza os previews na tela de forma estrita
+ * Processa e garante a retenção da Foto de Evidência com CSS corrigido
  */
-window.processarFotoEvidencia = function(rawBase64) {
+function processarFotoEvidencia(rawBase64) {
     if (!rawBase64) return;
 
     const imgPreviewPadrao = document.getElementById('prod-foto-preview');
@@ -493,18 +614,15 @@ window.processarFotoEvidencia = function(rawBase64) {
         const imgDinamica = document.getElementById('img-seguranca-dinamica');
         if (imgDinamica) imgDinamica.src = rawBase64;
     }
-};
+}
 
-/**
- * Processa e renderiza a Foto de Perfil do usuário
- */
-window.processarFotoPerfil = function(rawBase64) {
+function processarFotoPerfil(rawBase64) {
     if (!rawBase64) return;
     const inputPerfilBase64 = document.getElementById('perfil-foto-base64');
     if (inputPerfilBase64) inputPerfilBase64.value = rawBase64;
     const imgPerfil = document.getElementById('avatar-perfil-img');
     if (imgPerfil) imgPerfil.src = rawBase64;
-};
+}
 
 // ==========================================
 // 5. OPERAÇÕES DE SALVAR / ALTERAR NA NUVEM
