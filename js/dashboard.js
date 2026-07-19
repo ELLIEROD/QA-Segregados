@@ -326,6 +326,68 @@ function dispararCapturaFoto() {
 // ========================================================
 
 /**
+ * Reconhece texto via API da OCR.space (nuvem). Retorna o texto bruto lido,
+ * ou null se falhar por qualquer motivo (sem chave configurada, sem internet,
+ * cota excedida, erro da API etc.) - nesses casos quem chamou deve cair de
+ * volta para o Tesseract local.
+ *
+ * Requer que window.OCR_SPACE_API_KEY esteja definida (ex: em js/config.js:
+ * const OCR_SPACE_API_KEY = "SUA_CHAVE_AQUI";). A chave fica fora deste
+ * arquivo de propósito, pra não ficar hardcoded no código-fonte.
+ */
+function reconhecerViaOcrSpace(dataUrlJpeg) {
+    if (typeof OCR_SPACE_API_KEY === 'undefined' || !OCR_SPACE_API_KEY) {
+        console.log("OCR.space: chave não configurada (OCR_SPACE_API_KEY), pulando para o Tesseract.");
+        return Promise.resolve(null);
+    }
+
+    // A API gratuita da OCR.space tem limite de 1MB por imagem - o corte já
+    // é pequeno (uma tira, upscale 3x) mas em JPEG de qualidade máxima pode
+    // passar disso. Convertemos a base64 para Blob e checamos o tamanho.
+    const base64Puro = dataUrlJpeg.split(',')[1];
+    const tamanhoBytesAprox = base64Puro.length * 0.75;
+
+    const formData = new FormData();
+    if (tamanhoBytesAprox > 1000000) {
+        // Acima do limite de 1MB da API gratuita da OCR.space - não dá pra
+        // reduzir a qualidade aqui (não temos mais acesso ao canvas original
+        // nesta função), então cai direto pro fallback do Tesseract.
+        console.warn(`OCR.space: imagem (~${Math.round(tamanhoBytesAprox / 1024)}KB) acima do limite de 1MB da API gratuita, pulando para o Tesseract.`);
+        return Promise.resolve(null);
+    }
+    formData.append('base64Image', dataUrlJpeg);
+    formData.append('language', 'por');
+    formData.append('OCREngine', '2'); // Engine 2 costuma ser mais preciso para texto curto/estruturado
+    formData.append('scale', 'true');
+    formData.append('detectOrientation', 'true');
+
+    const controlador = new AbortController();
+    const timeoutId = setTimeout(() => controlador.abort(), 8000);
+
+    return fetch('https://api.ocr.space/parse/image', {
+        method: 'POST',
+        headers: { 'apikey': OCR_SPACE_API_KEY },
+        body: formData,
+        signal: controlador.signal
+    })
+    .then(res => res.json())
+    .then(json => {
+        clearTimeout(timeoutId);
+        if (json.IsErroredOnProcessing) {
+            console.warn("OCR.space retornou erro:", json.ErrorMessage);
+            return null;
+        }
+        const texto = json?.ParsedResults?.[0]?.ParsedText;
+        return texto || null;
+    })
+    .catch(err => {
+        clearTimeout(timeoutId);
+        console.warn("OCR.space indisponível, usando Tesseract como fallback:", err);
+        return null;
+    });
+}
+
+/**
  * Processamento OCR Direto e Preciso com Limpeza de Cache e Fallback Seguro
  */
 function processarOcrLote(rawBase64) {
@@ -532,13 +594,26 @@ function processarOcrLote(rawBase64) {
             load_freq_dawg: '0'
         };
 
+        // Tenta OCR.space (nuvem) primeiro - geralmente lê melhor fotos
+        // borradas/inclinadas do que o Tesseract local. Se não tiver chave
+        // configurada, sem internet, ou a API falhar por qualquer motivo,
+        // cai automaticamente para o Tesseract como reserva.
+        function reconhecerTira(dataUrl) {
+            return reconhecerViaOcrSpace(dataUrl).then(textoNuvem => {
+                if (textoNuvem) {
+                    console.log("Lido via OCR.space.");
+                    return textoNuvem;
+                }
+                return Tesseract.recognize(dataUrl, 'por+eng', configOcr)
+                    .then(resultado => resultado.data.text);
+            });
+        }
+
         Promise.all([
-            Tesseract.recognize(imgTiraSup, 'por+eng', configOcr),
-            Tesseract.recognize(imgTiraInf, 'por+eng', configOcr)
+            reconhecerTira(imgTiraSup),
+            reconhecerTira(imgTiraInf)
         ])
-        .then(([resultadoSup, resultadoInf]) => {
-            const textoSupBruto = resultadoSup.data.text;
-            const textoInfBruto = resultadoInf.data.text;
+        .then(([textoSupBruto, textoInfBruto]) => {
             console.log("Texto CRU lido (linha superior/validade):", textoSupBruto);
             console.log("Texto CRU lido (linha inferior/lote):", textoInfBruto);
 
@@ -995,8 +1070,20 @@ window.gerenciarEscolhaImpressao = function(id) {
 // Gerenciador de Equipamentos Zebra (Salvar, Listar e Excluir)
 // Modificado para usar 'sys_global_zebras' evitando perdas ao deslogar
 window.gerenciarImpressorasZebra = function(id, quantidade = 1) {
-    let impressoras = JSON.parse(localStorage.getItem('sys_global_zebras')) || [];
-    
+    let impressoras;
+    try {
+        impressoras = JSON.parse(localStorage.getItem('sys_global_zebras')) || [];
+    } catch (e) {
+        // Em algumas situações (comum em páginas abertas via file://, fora de
+        // um servidor local) o navegador bloqueia o acesso ao localStorage e
+        // essa leitura lança uma exceção. Sem esse try/catch, a função inteira
+        // parava aqui silenciosamente - o clique no botão "não fazia nada" e
+        // as impressoras cadastradas nunca apareciam, sem nenhum aviso.
+        console.error("Erro ao acessar localStorage:", e);
+        alert("Não foi possível acessar o armazenamento local do navegador para listar as impressoras salvas. Isso costuma acontecer quando a página é aberta direto do arquivo (file://) em vez de por um servidor local/http. Tente acessar via http://localhost ou verifique as permissões de armazenamento do navegador para esta página.");
+        return;
+    }
+
     let mensagem = "Selecione uma impressora digitando o NÚMERO correspondente:\n\n";
     
     if (impressoras.length === 0) {
@@ -1026,7 +1113,13 @@ window.gerenciarImpressorasZebra = function(id, quantidade = 1) {
         if (!ip) return;
 
         impressoras.push({ nome: nome.trim(), ip: ip.trim() });
-        localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
+        try {
+            localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
+        } catch (e) {
+            console.error("Erro ao salvar no localStorage:", e);
+            alert("Não foi possível salvar a impressora - o navegador bloqueou o armazenamento local. Tente acessar via http://localhost em vez de abrir o arquivo diretamente.");
+            return;
+        }
         alert("Impressora cadastrada com sucesso!");
         
         window.gerenciarImpressorasZebra(id, quantidade);
@@ -1047,7 +1140,13 @@ window.gerenciarImpressorasZebra = function(id, quantidade = 1) {
         }
 
         const removida = impressoras.splice(numExcluir - 1, 1);
-        localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
+        try {
+            localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
+        } catch (e) {
+            console.error("Erro ao salvar no localStorage:", e);
+            alert("Não foi possível salvar a exclusão - o navegador bloqueou o armazenamento local. Tente acessar via http://localhost em vez de abrir o arquivo diretamente.");
+            return;
+        }
         alert(`A impressora "${removida[0].nome}" foi excluída.`);
         
         window.gerenciarImpressorasZebra(id, quantidade);
@@ -1080,7 +1179,17 @@ window.gerarEtiquetaProduto = function(id, quantidade = 1) {
         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(urlConsulta)}`;
         
         const janelaImpressao = window.open('', '_blank', 'width=500,height=400');
-        
+
+        // BUG CORRIGIDO: se o navegador bloquear o popup (comum em páginas
+        // abertas via file:// ou com bloqueador de popup ativo), window.open()
+        // retorna null e o código seguinte (janelaImpressao.document.write)
+        // quebrava com um erro genérico e confuso ("Erro ao buscar dados para
+        // impressão"), sem indicar que o problema era o popup bloqueado.
+        if (!janelaImpressao || janelaImpressao.closed || typeof janelaImpressao.closed === 'undefined') {
+            alert("O navegador bloqueou a janela de impressão (pop-up). Permita pop-ups para esta página nas configurações do navegador e tente novamente.");
+            return;
+        }
+
         let conteudoEtiquetas = "";
         for (let i = 0; i < quantidade; i++) {
             conteudoEtiquetas += `
@@ -1224,22 +1333,42 @@ window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
         // Geração de timestamp contra retenção de cache do barramento
         const cacheBuster = Date.now();
 
+        // BUG CORRIGIDO: sem timeout, se o IP estiver errado ou a impressora
+        // fora da rede, o fetch podia ficar "pendurado" por muito tempo antes
+        // de falhar (ou nunca falhar de forma perceptível), dando a impressão
+        // de que o botão simplesmente não fazia nada.
+        const controlador = new AbortController();
+        const timeoutId = setTimeout(() => controlador.abort(), 4000);
+
         fetch(`http://${ipImpressora}:9100/?cb=${cacheBuster}`, {
             method: 'POST',
             body: comandoZPL,
             mode: 'no-cors',
             cache: 'no-store',
+            signal: controlador.signal,
             headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
             }
         })
         .then(() => {
+            clearTimeout(timeoutId);
             alert(`Comando de impressão (${quantidade}x) enviado com sucesso para a Zebra!`);
         })
         .catch((err) => {
+            clearTimeout(timeoutId);
             console.error("Erro ao conectar na Zebra:", err);
-            alert("Não foi possível alcançar a impressora Zebra. Verifique o IP cadastrado e a sua conexão de rede.");
+            if (err.name === 'AbortError') {
+                // A porta 9100 é um socket "raw" (recebe ZPL puro), não um
+                // servidor HTTP - ou seja, na maioria das vezes a impressora
+                // recebe e imprime normalmente, mas nunca devolve uma resposta
+                // HTTP para o navegador confirmar. Esse timeout geralmente NÃO
+                // significa que a impressão falhou, só que não há confirmação
+                // técnica possível a partir do navegador.
+                alert(`Comando enviado para ${ipImpressora}. Impressoras Zebra em modo raw normalmente não confirmam o recebimento, então isso não é necessariamente um erro - confira se a etiqueta saiu. Se não saiu, verifique se o IP está correto e se a impressora está ligada e na mesma rede.`);
+            } else {
+                alert("Não foi possível alcançar a impressora Zebra (conexão recusada ou fora da rede). Verifique o IP cadastrado e a sua conexão de rede.");
+            }
         });
 
     }).catch(err => {
