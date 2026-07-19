@@ -519,10 +519,11 @@ function processarOcrLote(rawBase64) {
                 const mAno = depois.match(/^(\d{2})/);
                 if (mAno) ano = mAno[1];
 
-                // procura os 4 dígitos do código DR logo depois do ano, dentro
-                // de uma janela curta (tolera letras ilegíveis entre eles)
-                const restoAposAno = depois.slice((ano || '').length, (ano || '').length + 10);
-                const mDr = restoAposAno.match(/(\d{2})\D{0,3}(\d{2})/);
+                // procura os 4 dígitos do código DR ancorado na própria "DR"
+                // (com tolerância a 0-3 caracteres ilegíveis logo depois dela),
+                // em vez de uma janela genérica de posição - mais robusto
+                // porque "DR" costuma ser mais legível que dígitos vizinhos.
+                const mDr = t.slice(mMes.index + 3).match(/[D0OQ]R\D{0,3}(\d{2})(\d{2})/);
                 if (mDr) { drDia = mDr[1]; drMes = mDr[2]; }
             }
 
@@ -551,9 +552,21 @@ function processarOcrLote(rawBase64) {
             const t = texto.replace(/\s/g, '');
 
             let maquina = null, juliano = null, hora = null, minuto = null, codigo = null;
-            const mBloco = t.match(/\d{10,12}/);
+
+            // Ancora a busca logo depois do prefixo "LSP2" (com tolerância a
+            // erros de leitura em cada letra) para não incluir por engano o
+            // "2" fixo do prefixo como se fosse o primeiro dígito variável -
+            // isso deslocava todos os campos seguintes em uma posição, o que
+            // corrompia principalmente o último campo (código).
+            const reLspAncorado = /[L1I][S5][PB]\D{0,1}2(\d{9,12})/;
+            let mBloco = t.match(reLspAncorado);
+            if (!mBloco) {
+                // Fallback: prefixo "LSP2" ilegível - tenta achar qualquer
+                // bloco longo de dígitos no texto (menos confiável).
+                mBloco = t.match(/\d{10,12}/);
+            }
             if (mBloco) {
-                const b = mBloco[0];
+                const b = mBloco[1] || mBloco[0];
                 maquina = b.slice(0, 1);
                 juliano = b.slice(1, 4);
                 hora = b.slice(4, 6);
