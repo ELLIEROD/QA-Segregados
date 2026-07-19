@@ -185,6 +185,10 @@ window.toggleLote = function(checkbox) {
     }
     if (supPreview) supPreview.innerHTML = "";
     if (infPreview) infPreview.innerHTML = "";
+    const supDebug = document.getElementById('prod-lote-sup-debug');
+    const infDebug = document.getElementById('prod-lote-inf-debug');
+    if (supDebug) supDebug.textContent = "";
+    if (infDebug) infDebug.textContent = "";
 }
 
 // ==========================================
@@ -397,6 +401,8 @@ function processarOcrLote(rawBase64) {
     if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "Processando...";
     if(document.getElementById('prod-lote-sup-preview')) document.getElementById('prod-lote-sup-preview').innerHTML = "";
     if(document.getElementById('prod-lote-inf-preview')) document.getElementById('prod-lote-inf-preview').innerHTML = "";
+    if(document.getElementById('prod-lote-sup-debug')) document.getElementById('prod-lote-sup-debug').textContent = "";
+    if(document.getElementById('prod-lote-inf-debug')) document.getElementById('prod-lote-inf-debug').textContent = "";
     
     const img = new Image();
     img.onload = function() {
@@ -627,11 +633,17 @@ function processarOcrLote(rawBase64) {
             const elInf = document.getElementById('prod-lote-inf');
             const elSupPreview = document.getElementById('prod-lote-sup-preview');
             const elInfPreview = document.getElementById('prod-lote-inf-preview');
+            const elSupDebug = document.getElementById('prod-lote-sup-debug');
+            const elInfDebug = document.getElementById('prod-lote-inf-debug');
 
             if (elSup) elSup.value = textoFinal(segSup);
             if (elInf) elInf.value = textoFinal(segInf);
             if (elSupPreview) elSupPreview.innerHTML = montarPreview(segSup);
             if (elInfPreview) elInfPreview.innerHTML = montarPreview(segInf);
+            // Texto bruto do OCR, visível na tela (sem precisar de DevTools) -
+            // útil para depurar leituras erradas direto pelo celular.
+            if (elSupDebug) elSupDebug.textContent = `bruto: ${textoSupBruto.replace(/\n/g, ' / ')}`;
+            if (elInfDebug) elInfDebug.textContent = `bruto: ${textoInfBruto.replace(/\n/g, ' / ')}`;
         })
         .catch(err => {
             console.error("Erro no motor Tesseract:", err);
@@ -639,6 +651,8 @@ function processarOcrLote(rawBase64) {
             if(document.getElementById('prod-lote-inf')) document.getElementById('prod-lote-inf').value = "";
             if(document.getElementById('prod-lote-sup-preview')) document.getElementById('prod-lote-sup-preview').innerHTML = "";
             if(document.getElementById('prod-lote-inf-preview')) document.getElementById('prod-lote-inf-preview').innerHTML = "";
+            if(document.getElementById('prod-lote-sup-debug')) document.getElementById('prod-lote-sup-debug').textContent = "";
+            if(document.getElementById('prod-lote-inf-debug')) document.getElementById('prod-lote-inf-debug').textContent = "";
             alert("Não foi possível escanear o lote automaticamente. Por favor, digite manualmente.");
         });
     };
