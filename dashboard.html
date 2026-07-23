@@ -26,14 +26,19 @@
 <body class="bg-bimbo-wallpaper min-h-screen font-sans p-4 text-slate-900">
 
 
-    <!-- TELA DE ABERTURA (SPLASH SCREEN INLINE) -->
-  <div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0f172a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; font-family: system-ui, -apple-system, sans-serif; transition: opacity 0.5s ease-out;">
-    <div style="text-align: center; color: #ffffff; padding: 20px;">
-      <img src="./img/icon-512.png" alt="Logo" style="width: 120px; height: 120px; object-fit: contain; margin: 0 auto 16px auto; display: block;">
-      <h1 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: -0.5px;">QA -Segregados</h1>
-      <p style="font-size: 0.9rem; color: #94a3b8; margin: 0; font-weight: 400;">Bem Vindo ao controle de produtos segregados QA</p>
-    </div>
+   <!-- TELA DE ABERTURA (SPLASH SCREEN RESPONSIVA) -->
+<div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0f172a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; font-family: system-ui, -apple-system, sans-serif; transition: opacity 0.5s ease-out;">
+  <div style="text-align: center; color: #ffffff; padding: 20px; width: 100%; max-width: 500px;">
+    
+    <!-- ÍCONE RESPONSIVO: Cresce no PC (até 220px) e se ajusta perfeito no celular -->
+    <img src="./img/icon-512.png" alt="Logo" style="width: min(40vw, 28vh); height: auto; max-width: 220px; object-fit: contain; margin: 0 auto 20px auto; display: block;">
+    
+    <!-- TÍTULO E SUBTÍTULO COM FONTE ADAPTÁVEL -->
+    <h1 style="font-size: clamp(1.4rem, 2.5vw, 2.2rem); font-weight: 800; color: #ffffff; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: -0.5px;">QA - Segregados</h1>
+    <p style="font-size: clamp(0.85rem, 1.2vw, 1.1rem); color: #94a3b8; margin: 0; font-weight: 400;">Controle, Monitoramento e segregação de Produtos</p>
   </div>
+</div>
+    
     <!-- Coloque este script logo abaixo da <div id="splash-screen"> no seu HTML -->
 <script>
   (function() {
