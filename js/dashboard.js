@@ -1676,3 +1676,13 @@ if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) 
         atualizarTabelaUsuarios(listaUsuarios);
     });
 }
+
+// Esconde a Splash Screen após 2 segundos (2000ms)
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+      splash.classList.add('splash-hidden');
+    }
+  }, 2000); // 2000 = 2 segundos (pode mudar para 1500 se quiser 1,5s)
+});
