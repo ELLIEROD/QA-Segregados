@@ -34,6 +34,21 @@
       <p style="font-size: 0.9rem; color: #94a3b8; margin: 0; font-weight: 400;">Controle e Monitoramento QA</p>
     </div>
   </div>
+    <!-- Coloque este script logo abaixo da <div id="splash-screen"> no seu HTML -->
+<script>
+  (function() {
+    // Garante a exibição do splash imediatamente
+    setTimeout(function() {
+      var splash = document.getElementById('splash-screen');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(function() {
+          splash.style.display = 'none';
+        }, 500); // 500ms para concluir o fade-out
+      }
+    }, 2000); // 2000ms = 2 segundos de exibição
+  })();
+</script>
 
     <div class="bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md border-t-8 border-red-600 relative overflow-hidden">
         
