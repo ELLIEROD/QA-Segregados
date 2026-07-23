@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v5'; // Nova versão do cache
+const CACHE_NAME = 'qa-v6'; // Subimos a versão para descartar o cache das imagens antigas
 
 const ASSETS = [
   '/',
@@ -17,39 +17,33 @@ const ASSETS = [
   '/js/rastreabilidade.js'
 ];
 
-// 1. Instalação: Salva os arquivos e força a ativação imediata
+// 1. Instalação: Baixa os novos arquivos e força a ativação imediata
 self.addEventListener('install', e => {
+  self.skipWaiting(); // Não espera as abas antigas fecharem
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(ASSETS);
-    }).then(() => {
-      // Força o Service Worker atual a virar o "ativo" sem esperar o usuário fechar o app
-      return self.skipWaiting();
     })
   );
 });
 
-// 2. Ativação: Varre o navegador e deleta de forma automática qualquer cache antigo (ex: qa-v2)
+// 2. Ativação: Deleta o cache da v5 (com os ícones velhos) e assume o controle das abas
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cache => {
-          // Se o cache encontrado na memória for diferente do atual (qa-v3), apaga ele
           if (cache !== CACHE_NAME) {
-            console.log(`[Service Worker] Deletando cache antigo obsoleto: ${cache}`);
+            console.log(`[Service Worker] Apagando cache antigo: ${cache}`);
             return caches.delete(cache);
           }
         })
       );
-    }).then(() => {
-      // Faz o Service Worker assumir o controle das páginas abertas imediatamente
-      return self.clients.claim();
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// 3. Estratégia de Busca: Responde com Cache se houver, senão busca na Rede
+// 3. Busca de Arquivos
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(response => {
