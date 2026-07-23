@@ -322,12 +322,19 @@ if (cadFotoBtn) {
     });
 }
 
-// Esconde a Splash Screen após 2 segundos (2000ms)
-window.addEventListener('DOMContentLoaded', () => {
+// Oculta a Splash Screen após 2 segundos
+function ocultarSplashScreen() {
   setTimeout(() => {
     const splash = document.getElementById('splash-screen');
     if (splash) {
       splash.classList.add('splash-hidden');
     }
-  }, 2000); // 2000 = 2 segundos (pode mudar para 1500 se quiser 1,5s)
-});
+  }, 2000);
+}
+
+// Executa assim que o DOM carregar (ou imediatamente se já tiver carregado)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ocultarSplashScreen);
+} else {
+  ocultarSplashScreen();
+}
