@@ -322,19 +322,25 @@ if (cadFotoBtn) {
     });
 }
 
-// Oculta a Splash Screen após 2 segundos
-function ocultarSplashScreen() {
-  setTimeout(() => {
+// Oculta a Splash Screen com transição direta inline
+(function controlarSplashScreen() {
+  function fecharSplash() {
     const splash = document.getElementById('splash-screen');
     if (splash) {
-      splash.classList.add('splash-hidden');
+      splash.style.opacity = '0';
+      // Aguarda 500ms da animação de opacidade para remover o elemento da tela
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 500);
     }
-  }, 2000);
-}
+  }
 
-// Executa assim que o DOM carregar (ou imediatamente se já tiver carregado)
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', ocultarSplashScreen);
-} else {
-  ocultarSplashScreen();
-}
+  // Conta 2 segundos (2000ms) após o carregamento
+  if (document.readyState === 'complete') {
+    setTimeout(fecharSplash, 2000);
+  } else {
+    window.addEventListener('load', () => {
+      setTimeout(fecharSplash, 2000);
+    });
+  }
+})();
