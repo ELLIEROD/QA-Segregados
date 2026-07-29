@@ -297,6 +297,47 @@ window.fecharCameraInApp = function() {
 };
 
 /**
+ * Traduz a posição na TELA do elemento-guia (o que o usuário vê e alinha)
+ * para coordenadas de PIXEL na foto capturada. Precisa considerar que o
+ * vídeo usa object-fit:cover, ou seja, o que aparece na tela é só uma janela
+ * cortada do frame real da câmera (videoWidth x videoHeight) - então a conta
+ * não é uma simples regra de três direta.
+ */
+function calcularRecorteDoGuia(video, overlayEl, larguraFoto, alturaFoto) {
+    try {
+        const videoRect = video.getBoundingClientRect();
+        const overlayRect = overlayEl.getBoundingClientRect();
+        if (!videoRect.width || !videoRect.height || !overlayRect.width || !overlayRect.height) return null;
+
+        // Posição do guia como fração da área VISÍVEL na tela (0 a 1)
+        const fracX = (overlayRect.left - videoRect.left) / videoRect.width;
+        const fracY = (overlayRect.top - videoRect.top) / videoRect.height;
+        const fracW = overlayRect.width / videoRect.width;
+        const fracH = overlayRect.height / videoRect.height;
+
+        // object-fit:cover: a câmera mostra só uma janela central do frame
+        // real, cortando o que sobra na dimensão maior.
+        const escalaCover = Math.max(videoRect.width / larguraFoto, videoRect.height / alturaFoto);
+        const larguraVisivelNaFoto = videoRect.width / escalaCover;
+        const alturaVisivelNaFoto = videoRect.height / escalaCover;
+        const cropXNaFoto = (larguraFoto - larguraVisivelNaFoto) / 2;
+        const cropYNaFoto = (alturaFoto - alturaVisivelNaFoto) / 2;
+
+        // Posição final do guia em pixels da foto capturada
+        const x = Math.round(cropXNaFoto + fracX * larguraVisivelNaFoto);
+        const y = Math.round(cropYNaFoto + fracY * alturaVisivelNaFoto);
+        const w = Math.round(fracW * larguraVisivelNaFoto);
+        const h = Math.round(fracH * alturaVisivelNaFoto);
+
+        if (w < 10 || h < 10) return null; // guia sem tamanho útil, ignora
+        return { x, y, w, h };
+    } catch (e) {
+        console.warn("Não foi possível calcular a área do guia visual, usando recorte padrão:", e);
+        return null;
+    }
+}
+
+/**
  * Captura o frame atual e distribui para os processadores corretos
  */
 function dispararCapturaFoto() {
@@ -313,11 +354,23 @@ function dispararCapturaFoto() {
     ctx.drawImage(video, 0, 0, canvasCaptura.width, canvasCaptura.height);
     
     const rawBase64 = canvasCaptura.toDataURL('image/jpeg', 0.85); 
+
+    // Calcula a área do guia visual ("Alinhe o lote aqui") em coordenadas da
+    // FOTO capturada, para o OCR recortar exatamente a mesma região que o
+    // usuário vê e alinha na tela - em vez de um percentual genérico que
+    // podia pegar texto de fora do guia (ex: tabela nutricional).
+    let recorteGuia = null;
+    if (contextoParaProcessar === 'lote') {
+        const quadroGuia = document.getElementById('camera-overlay-lote-quadro');
+        if (quadroGuia) {
+            recorteGuia = calcularRecorteDoGuia(video, quadroGuia, canvasCaptura.width, canvasCaptura.height);
+        }
+    }
     
     fecharCameraInApp();
 
     if (contextoParaProcessar === 'lote') {
-        processarOcrLote(rawBase64);
+        processarOcrLote(rawBase64, recorteGuia);
     } else if (contextoParaProcessar === 'evidencia') {
         processarFotoEvidencia(rawBase64);
     } else if (contextoParaProcessar === 'perfil') {
@@ -394,7 +447,7 @@ function reconhecerViaOcrSpace(dataUrlJpeg) {
 /**
  * Processamento OCR Direto e Preciso com Limpeza de Cache e Fallback Seguro
  */
-function processarOcrLote(rawBase64) {
+function processarOcrLote(rawBase64, recorteGuia) {
     if (!rawBase64) return;
     
     if(document.getElementById('prod-lote-sup')) document.getElementById('prod-lote-sup').value = "Processando...";
@@ -591,10 +644,28 @@ function processarOcrLote(rawBase64) {
             ];
         }
 
-        const corteLargura = Math.floor(img.width * 0.90);
-        const corteAltura = Math.floor(img.height * 0.50);
-        const corteX = Math.floor((img.width - corteLargura) / 2);
-        const corteY = Math.floor((img.height - corteAltura) / 2);
+        // Se conseguimos medir a área do guia visual no momento da captura,
+        // usamos exatamente ela (evita pegar texto de fora do que o usuário
+        // alinhou na tela, como tabela nutricional). Senão, cai no percentual
+        // genérico como reserva.
+        let corteLargura, corteAltura, corteX, corteY;
+        if (recorteGuia && recorteGuia.w > 0 && recorteGuia.h > 0) {
+            // Uma pequena margem (8%) para tolerar leve desalinhamento do
+            // usuário sem cortar o texto rente à borda do guia.
+            const margemW = Math.round(recorteGuia.w * 0.08);
+            const margemH = Math.round(recorteGuia.h * 0.15);
+            corteX = Math.max(0, recorteGuia.x - margemW);
+            corteY = Math.max(0, recorteGuia.y - margemH);
+            corteLargura = Math.min(img.width - corteX, recorteGuia.w + margemW * 2);
+            corteAltura = Math.min(img.height - corteY, recorteGuia.h + margemH * 2);
+            console.log("Usando área do guia visual para o recorte do OCR:", { corteX, corteY, corteLargura, corteAltura });
+        } else {
+            corteLargura = Math.floor(img.width * 0.90);
+            corteAltura = Math.floor(img.height * 0.50);
+            corteX = Math.floor((img.width - corteLargura) / 2);
+            corteY = Math.floor((img.height - corteAltura) / 2);
+            console.log("Guia visual não disponível, usando recorte padrão genérico para o OCR.");
+        }
 
         // Divide o recorte em duas TIRAS (superior = validade, inferior = lote),
         // com uma leve sobreposição para não cortar texto bem na fronteira entre
@@ -1086,6 +1157,12 @@ window.gerenciarEscolhaImpressao = function(id) {
         return;
     }
 
+    const verPreview = confirm("Deseja ver uma pré-visualização da etiqueta antes de imprimir?\n\n[OK] Sim, mostrar prévia\n[Cancelar] Não, ir direto pra impressão");
+    if (verPreview) {
+        window.preVisualizarEtiquetaZebra(id, quantidade);
+        return; // O próprio modal de prévia tem os botões para prosseguir com a impressão
+    }
+
     const escolha = confirm("Deseja imprimir direto na impressora ZEBRA via rede?\n\n[OK] para Zebra (Rede)\n[Cancelar] para Impressão Padrão (Navegador)");
     if (escolha) {
         window.gerenciarImpressorasZebra(id, quantidade);
@@ -1097,99 +1174,98 @@ window.gerenciarEscolhaImpressao = function(id) {
 // Gerenciador de Equipamentos Zebra (Salvar, Listar e Excluir)
 // Modificado para usar 'sys_global_zebras' evitando perdas ao deslogar
 window.gerenciarImpressorasZebra = function(id, quantidade = 1) {
-    let impressoras;
-    try {
-        impressoras = JSON.parse(localStorage.getItem('sys_global_zebras')) || [];
-    } catch (e) {
-        // Em algumas situações (comum em páginas abertas via file://, fora de
-        // um servidor local) o navegador bloqueia o acesso ao localStorage e
-        // essa leitura lança uma exceção. Sem esse try/catch, a função inteira
-        // parava aqui silenciosamente - o clique no botão "não fazia nada" e
-        // as impressoras cadastradas nunca apareciam, sem nenhum aviso.
-        console.error("Erro ao acessar localStorage:", e);
-        alert("Não foi possível acessar o armazenamento local do navegador para listar as impressoras salvas. Isso costuma acontecer quando a página é aberta direto do arquivo (file://) em vez de por um servidor local/http. Tente acessar via http://localhost ou verifique as permissões de armazenamento do navegador para esta página.");
-        return;
-    }
+    db.ref('impressoras_zebra').once('value')
+        .then(snapshot => {
+            const dados = snapshot.val() || {};
+            // Object {chaveFirebase: {nome, ip}} -> array preservando a chave
+            // (precisamos dela pra poder excluir depois)
+            const impressoras = Object.keys(dados).map(chave => ({
+                chave,
+                nome: dados[chave].nome,
+                ip: dados[chave].ip
+            }));
 
-    let mensagem = "Selecione uma impressora digitando o NÚMERO correspondente:\n\n";
-    
-    if (impressoras.length === 0) {
-        mensagem += "[Nenhum equipamento cadastrado ainda]\n";
-    } else {
-        impressoras.forEach((imp, index) => {
-            mensagem += `${index + 1} - ${imp.nome} (${imp.ip})\n`;
+            let mensagem = "Selecione uma impressora digitando o NÚMERO correspondente:\n\n";
+
+            if (impressoras.length === 0) {
+                mensagem += "[Nenhum equipamento cadastrado ainda]\n";
+            } else {
+                impressoras.forEach((imp, index) => {
+                    mensagem += `${index + 1} - ${imp.nome} (${imp.ip})\n`;
+                });
+            }
+
+            mensagem += "\nOutras opções:\n";
+            mensagem += "N - Cadastrar Nova Impressora\n";
+            if (impressoras.length > 0) {
+                mensagem += "E - Excluir uma Impressora Salva\n";
+            }
+            mensagem += "C - Cancelar";
+
+            const opcao = prompt(mensagem);
+            if (!opcao) return;
+            const opcaoLimpa = opcao.trim().toUpperCase();
+
+            // Opção: Cadastrar Nova
+            if (opcaoLimpa === 'N') {
+                const nome = prompt("Digite um nome para a impressora Zebra (Ex: Almoxarifado, Linha 2):");
+                if (!nome) return;
+                const ip = prompt("Digite o endereço IP da impressora Zebra:", "192.168.1.150");
+                if (!ip) return;
+
+                db.ref('impressoras_zebra').push().set({ nome: nome.trim(), ip: ip.trim() })
+                    .then(() => {
+                        alert("Impressora cadastrada com sucesso! Ela já fica disponível para todos os aparelhos conectados.");
+                        window.gerenciarImpressorasZebra(id, quantidade);
+                    })
+                    .catch(err => {
+                        console.error("Erro ao salvar impressora no Firebase:", err);
+                        alert("Não foi possível salvar a impressora na nuvem. Verifique sua conexão com a internet e tente novamente.");
+                    });
+                return;
+            }
+
+            // Opção: Excluir Aparelho
+            if (opcaoLimpa === 'E' && impressoras.length > 0) {
+                let msgExcluir = "Digite o número da impressora que deseja REMOVER:\n\n";
+                impressoras.forEach((imp, index) => {
+                    msgExcluir += `${index + 1} - ${imp.nome} (${imp.ip})\n`;
+                });
+
+                const numExcluir = parseInt(prompt(msgExcluir));
+                if (isNaN(numExcluir) || numExcluir < 1 || numExcluir > impressoras.length) {
+                    alert("Número inválido. Operação cancelada.");
+                    return;
+                }
+
+                const removida = impressoras[numExcluir - 1];
+                db.ref('impressoras_zebra/' + removida.chave).remove()
+                    .then(() => {
+                        alert(`A impressora "${removida.nome}" foi excluída.`);
+                        window.gerenciarImpressorasZebra(id, quantidade);
+                    })
+                    .catch(err => {
+                        console.error("Erro ao excluir impressora no Firebase:", err);
+                        alert("Não foi possível excluir - verifique sua conexão com a internet.");
+                    });
+                return;
+            }
+
+            if (opcaoLimpa === 'C') return;
+
+            // Opção: Selecionar Impressora Existente da Lista
+            const indiceSelecionado = parseInt(opcaoLimpa) - 1;
+            if (!isNaN(indiceSelecionado) && indiceSelecionado >= 0 && indiceSelecionado < impressoras.length) {
+                const ipEscolhido = impressoras[indiceSelecionado].ip;
+                window.imprimirZebraRede(id, ipEscolhido, quantidade);
+            } else {
+                alert("Opção inválida.");
+            }
+        })
+        .catch(err => {
+            console.error("Erro ao carregar impressoras do Firebase:", err);
+            alert("Não foi possível carregar a lista de impressoras da nuvem. Verifique sua conexão com a internet.");
         });
-    }
-    
-    mensagem += "\nOutras opções:\n";
-    mensagem += "N - Cadastrar Nova Impressora\n";
-    if (impressoras.length > 0) {
-        mensagem += "E - Excluir uma Impressora Salva\n";
-    }
-    mensagem += "C - Cancelar";
-
-    const opcao = prompt(mensagem);
-    if (!opcao) return; 
-    const opcaoLimpa = opcao.trim().toUpperCase();
-
-    // Opção: Cadastrar Nova
-    if (opcaoLimpa === 'N') {
-        const nome = prompt("Digite um nome para a impressora Zebra (Ex: Almoxarifado, Linha 2):");
-        if (!nome) return;
-        const ip = prompt("Digite o endereço IP da impressora Zebra:", "192.168.1.150");
-        if (!ip) return;
-
-        impressoras.push({ nome: nome.trim(), ip: ip.trim() });
-        try {
-            localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
-        } catch (e) {
-            console.error("Erro ao salvar no localStorage:", e);
-            alert("Não foi possível salvar a impressora - o navegador bloqueou o armazenamento local. Tente acessar via http://localhost em vez de abrir o arquivo diretamente.");
-            return;
-        }
-        alert("Impressora cadastrada com sucesso!");
-        
-        window.gerenciarImpressorasZebra(id, quantidade);
-        return;
-    }
-
-    // Opção: Excluir Aparelho
-    if (opcaoLimpa === 'E' && impressoras.length > 0) {
-        let msgExcluir = "Digite o número da impressora que deseja REMOVER:\n\n";
-        impressoras.forEach((imp, index) => {
-            msgExcluir += `${index + 1} - ${imp.nome} (${imp.ip})\n`;
-        });
-        
-        const numExcluir = parseInt(prompt(msgExcluir));
-        if (isNaN(numExcluir) || numExcluir < 1 || numExcluir > impressoras.length) {
-            alert("Número inválido. Operação cancelada.");
-            return;
-        }
-
-        const removida = impressoras.splice(numExcluir - 1, 1);
-        try {
-            localStorage.setItem('sys_global_zebras', JSON.stringify(impressoras));
-        } catch (e) {
-            console.error("Erro ao salvar no localStorage:", e);
-            alert("Não foi possível salvar a exclusão - o navegador bloqueou o armazenamento local. Tente acessar via http://localhost em vez de abrir o arquivo diretamente.");
-            return;
-        }
-        alert(`A impressora "${removida[0].nome}" foi excluída.`);
-        
-        window.gerenciarImpressorasZebra(id, quantidade);
-        return;
-    }
-
-    if (opcaoLimpa === 'C') return;
-
-    // Opção: Selecionar Impressora Existente da Lista
-    const indiceSelecionado = parseInt(opcaoLimpa) - 1;
-    if (!isNaN(indiceSelecionado) && indiceSelecionado >= 0 && indiceSelecionado < impressoras.length) {
-        const ipEscolhido = impressoras[indiceSelecionado].ip;
-        window.imprimirZebraRede(id, ipEscolhido, quantidade);
-    } else {
-        alert("Opção inválida.");
-    }
 };
 
 // OPÇÃO 1: IMPRESSÃO COMUM (Layout Lado a Lado Otimizado para 10x7.5 cm)
@@ -1306,6 +1382,129 @@ window.gerarEtiquetaProduto = function(id, quantidade = 1) {
     });
 };
 
+// Monta o ZPL da etiqueta - função separada para poder ser reutilizada tanto
+// na impressão real quanto na pré-visualização (sem duplicar o template).
+//
+// TAMANHO REAL DA ETIQUETA: 100mm x 50mm (não 75mm como estava antes) - a
+// 8 dots/mm isso é 800x400 dots, não 800x600. Com ^LL600 (75mm) o conteúdo do
+// rodapé ficava fora da área física real da etiqueta.
+//
+// CORREÇÃO DE SOBREPOSIÇÃO: o texto de PRODUTO e LOTE pode ser bem mais longo
+// que o espaço até o QR Code (o campo "lote" no banco guarda as duas linhas
+// juntas, ex: "VAL16 SET 26 DR0109 | LSP2211919...", ~45 caracteres) - textos
+// assim atravessavam por baixo do QR Code, deixando ele ilegível. Usando
+// ^FB (Field Block) para travar a LARGURA MÁXIMA do texto e quebrar em até 2
+// linhas automaticamente, o texto nunca mais invade a coluna do QR,
+// independente de quão longo o produto ou o lote sejam.
+function construirZPLEtiqueta(item, quantidade) {
+    const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
+
+    return `
+^XA
+^CI28
+^PW800
+^LL400
+
+^FX --- Faixa Superior de Alerta ---
+^FO20,15^GB760,32,32^FS
+^FO270,20^A0N,24,24^FR^FDPRODUTO RETIDO^FS
+
+^FX --- Cabeçalho ---
+^FO20,52^GB760,2,2^FS
+
+^FX --- Bloco de Informações (Esquerda) - largura travada em 460 dots (^FB) ---
+^FX --- para nunca invadir a coluna do QR Code, mesmo com texto longo ---
+^FO20,62^A0N,22,22^FB460,2,0,L^FDPRODUTO: ${item.produto.toUpperCase()}^FS
+^FO20,132^A0N,20,20^FB460,2,0,L^FDLOTE: ${item.lote}^FS
+^FO20,205^A0N,22,22^FDSTATUS: ${item.status.toUpperCase()}^FS
+
+^FX --- QR Code (Direita) - sem legenda, largura garantida sem texto por perto ---
+^FO540,62^BQN,2,4^FDQA,${urlConsulta}^FS
+
+^FX --- Rodapé compacto (dados já disponíveis ao escanear o QR) ---
+^FO20,358^GB760,2,2^FS
+^FO20,366^A0N,14,14^FDDATA: ${item.dataHora}   RESP: ${item.responsavel.toUpperCase()}^FS
+
+^FX --- Quantidade de Cópias Emitidas Nativamente ---
+^PQ${quantidade},0,1,Y
+^XZ
+        `;
+}
+
+/**
+ * Pré-visualização real da etiqueta ZPL, renderizada pela Labelary (serviço
+ * gratuito de conversão ZPL -> imagem). Mostra exatamente como vai sair na
+ * impressora, antes de gastar etiqueta física.
+ */
+window.preVisualizarEtiquetaZebra = function(id, quantidade = 1) {
+    db.ref('segregados/' + id).once('value').then((snapshot) => {
+        const item = snapshot.val();
+        if (!item) {
+            alert("Erro: Produto não localizado na base.");
+            return;
+        }
+
+        const zpl = construirZPLEtiqueta(item, quantidade);
+        const modal = document.getElementById('modal-preview-etiqueta');
+        const imgPreview = document.getElementById('preview-etiqueta-img');
+        const statusPreview = document.getElementById('preview-etiqueta-status');
+        if (!modal || !imgPreview) {
+            alert("Elemento de pré-visualização não encontrado na página.");
+            return;
+        }
+
+        // Guarda id/quantidade no próprio modal para os botões "Imprimir"
+        // da prévia conseguirem prosseguir sem pedir tudo de novo.
+        modal.dataset.itemId = id;
+        modal.dataset.quantidade = quantidade;
+
+        statusPreview.textContent = "Gerando pré-visualização...";
+        imgPreview.classList.add('hidden');
+        modal.classList.remove('hidden');
+
+        fetch('https://api.labelary.com/v1/printers/8dpmm/labels/4x3/0/', {
+            method: 'POST',
+            headers: { 'Accept': 'image/png', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: zpl
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Labelary respondeu ' + res.status);
+            return res.blob();
+        })
+        .then(blob => {
+            const urlImagem = URL.createObjectURL(blob);
+            imgPreview.src = urlImagem;
+            imgPreview.classList.remove('hidden');
+            statusPreview.textContent = "";
+        })
+        .catch(err => {
+            console.error("Erro ao gerar pré-visualização:", err);
+            statusPreview.textContent = "Não foi possível gerar a pré-visualização (verifique sua conexão com a internet). Isso não impede a impressão, é só a prévia que falhou.";
+        });
+    }).catch(err => {
+        console.error("Erro ao buscar dados para pré-visualização:", err);
+        alert("Erro ao buscar dados do produto.");
+    });
+};
+
+window.fecharPreviewEtiqueta = function() {
+    const modal = document.getElementById('modal-preview-etiqueta');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.prosseguirImpressaoDoPreview = function(destino) {
+    const modal = document.getElementById('modal-preview-etiqueta');
+    if (!modal) return;
+    const id = modal.dataset.itemId;
+    const quantidade = parseInt(modal.dataset.quantidade) || 1;
+    window.fecharPreviewEtiqueta();
+    if (destino === 'zebra') {
+        window.gerenciarImpressorasZebra(id, quantidade);
+    } else {
+        window.gerarEtiquetaProduto(id, quantidade);
+    }
+};
+
 // OPÇÃO 2: ENVIAR PARA ZEBRA (Com QRCode posicionado ao lado e livre de Cache)
 window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
     if (!ipImpressora) return;
@@ -1317,45 +1516,7 @@ window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
             return;
         }
 
-        const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
-
-        // Reestruturação ZPL para Etiqueta 100mm x 75mm (800x600 dots em 203 dpi)
-        // O QR Code foi empurrado para a extrema direita (^FO520,130) e as informações estão à esquerda
-        const comandoZPL = `
-^XA
-^CI28
-^PW800
-^LL600
-
-^FX --- Faixa Superior de Alerta ---
-^FO40,30^GB720,45,45^FS
-^FO270,40^A0N,32,32^FR^FDPRODUTO RETIDO^FS
-
-^FX --- Cabeçalho ---
-^FO40,95^A0N,22,22^FDCONTROLE DE QUALIDADE^FS
-^FO40,120^GB720,2,2^FS
-
-^FX --- Bloco de Informações (Esquerda) ---
-^FO40,150^A0N,24,24^FDPRODUTO: ${item.produto.toUpperCase()}^FS
-^FO40,190^A0N,24,24^FDLOTE:    ${item.lote}^FS
-^FO40,230^A0N,24,24^FDQTD:     ${item.quantidade}^FS
-^FO40,270^A0N,24,24^FDDATA:    ${item.dataHora}^FS
-^FO40,310^A0N,24,24^FDSTATUS:  ${item.status.toUpperCase()}^FS
-^FO40,350^A0N,24,24^FDRESP:    ${item.responsavel.toUpperCase()}^FS
-
-^FX --- Bloco do QR Code (Direita - Sem Cortar) ---
-^FO520,150^BQN,2,5^FDQA,${urlConsulta}^FS
-^FO480,290^A0N,15,15^FDESCANEE PARA^FS
-^FO480,310^A0N,15,15^FDRASTREABILIDADE^FS
-
-^FX --- Rodapé ---
-^FO40,400^GB720,2,2^FS
-^FO260,415^A0N,20,20^FDID Interno: #RL-${item.id}^FS
-
-^FX --- Quantidade de Cópias Emitidas Nativamente ---
-^PQ${quantidade},0,1,Y
-^XZ
-        `;
+        const comandoZPL = construirZPLEtiqueta(item, quantidade);
 
         // Geração de timestamp contra retenção de cache do barramento
         const cacheBuster = Date.now();
@@ -1380,7 +1541,7 @@ window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
         })
         .then(() => {
             clearTimeout(timeoutId);
-            alert(`Comando de impressão (${quantidade}x) enviado com sucesso para a Zebra!`);
+            confirmarImpressaoZebra(id, ipImpressora, quantidade, `Comando de impressão (${quantidade}x) enviado com sucesso para a Zebra!`);
         })
         .catch((err) => {
             clearTimeout(timeoutId);
@@ -1392,9 +1553,9 @@ window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
                 // HTTP para o navegador confirmar. Esse timeout geralmente NÃO
                 // significa que a impressão falhou, só que não há confirmação
                 // técnica possível a partir do navegador.
-                alert(`Comando enviado para ${ipImpressora}. Impressoras Zebra em modo raw normalmente não confirmam o recebimento, então isso não é necessariamente um erro - confira se a etiqueta saiu. Se não saiu, verifique se o IP está correto e se a impressora está ligada e na mesma rede.`);
+                confirmarImpressaoZebra(id, ipImpressora, quantidade, `Comando enviado para ${ipImpressora}. Impressoras Zebra em modo raw normalmente não confirmam o recebimento, então isso não é necessariamente um erro.`);
             } else {
-                alert("Não foi possível alcançar a impressora Zebra (conexão recusada ou fora da rede). Verifique o IP cadastrado e a sua conexão de rede.");
+                alert(`Não foi possível conectar na impressora Zebra (${ipImpressora}).\n\nAlém de IP errado/impressora desligada, isso é comum hoje em dia porque o Chrome (e outros baseados nele) bloqueiam por padrão chamadas para IPs de rede local (ex: 192.168.x.x), a menos que:\n\n1) A página esteja em HTTPS ou localhost (não funciona bem em file:// ou http:// simples num IP)\n2) Você tenha permitido "Rede local" nas configurações do site (ícone de cadeado ao lado da URL > Configurações do site)\n\nVerifique essas duas coisas além do IP cadastrado.`);
             }
         });
 
@@ -1403,6 +1564,22 @@ window.imprimirZebraRede = function(id, ipImpressora, quantidade = 1) {
         alert("Erro ao processar dados da etiqueta.");
     });
 };
+
+/**
+ * Pergunta ao usuário se a etiqueta realmente saiu impressa. Como a Zebra em
+ * modo raw não confirma tecnicamente o recebimento, essa é a única forma
+ * confiável de saber se a impressão funcionou de verdade. Se disser que não
+ * saiu, oferece reenviar o comando sem precisar refazer todo o fluxo.
+ */
+function confirmarImpressaoZebra(id, ipImpressora, quantidade, mensagemInicial) {
+    const saiu = confirm(`${mensagemInicial}\n\nA etiqueta saiu corretamente na impressora?\n\n[OK] Sim, saiu certinho\n[Cancelar] Não saiu / saiu com problema`);
+    if (!saiu) {
+        const tentarDeNovo = confirm("Deseja reenviar o comando de impressão agora?");
+        if (tentarDeNovo) {
+            window.imprimirZebraRede(id, ipImpressora, quantidade);
+        }
+    }
+}
 
 // ==========================================
 // FUNÇÕES DE INTERAÇÃO (FILTROS E MODAL)
@@ -1676,26 +1853,3 @@ if (["Supervisor", "Qualidade", "Administrador"].includes(usuarioLogado.nivel)) 
         atualizarTabelaUsuarios(listaUsuarios);
     });
 }
-
-// Oculta a Splash Screen com transição direta inline
-(function controlarSplashScreen() {
-  function fecharSplash() {
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-      splash.style.opacity = '0';
-      // Aguarda 500ms da animação de opacidade para remover o elemento da tela
-      setTimeout(() => {
-        splash.style.display = 'none';
-      }, 500);
-    }
-  }
-
-  // Conta 2 segundos (2000ms) após o carregamento
-  if (document.readyState === 'complete') {
-    setTimeout(fecharSplash, 2000);
-  } else {
-    window.addEventListener('load', () => {
-      setTimeout(fecharSplash, 2000);
-    });
-  }
-})();
