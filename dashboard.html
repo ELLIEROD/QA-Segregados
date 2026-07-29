@@ -25,36 +25,6 @@
 </head>
 <body class="bg-bimbo-wallpaper min-h-screen font-sans p-4 text-slate-900">
 
-
-   <!-- TELA DE ABERTURA (SPLASH SCREEN RESPONSIVA) -->
-<div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0f172a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; font-family: system-ui, -apple-system, sans-serif; transition: opacity 0.5s ease-out;">
-  <div style="text-align: center; color: #ffffff; padding: 20px; width: 100%; max-width: 500px;">
-    
-    <!-- ÍCONE RESPONSIVO: Cresce no PC (até 220px) e se ajusta perfeito no celular -->
-    <img src="./img/icon-512.png" alt="Logo" style="width: min(40vw, 28vh); height: auto; max-width: 220px; object-fit: contain; margin: 0 auto 20px auto; display: block;">
-    
-    <!-- TÍTULO E SUBTÍTULO COM FONTE ADAPTÁVEL -->
-    <h1 style="font-size: clamp(1.4rem, 2.5vw, 2.2rem); font-weight: 800; color: #ffffff; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: -0.5px;">QA - Segregados</h1>
-    <p style="font-size: clamp(0.85rem, 1.2vw, 1.1rem); color: #94a3b8; margin: 0; font-weight: 400;">Controle, Monitoramento e segregação de Produtos</p>
-  </div>
-</div>
-    
-    <!-- Coloque este script logo abaixo da <div id="splash-screen"> no seu HTML -->
-<script>
-  (function() {
-    // Garante a exibição do splash imediatamente
-    setTimeout(function() {
-      var splash = document.getElementById('splash-screen');
-      if (splash) {
-        splash.style.opacity = '0';
-        setTimeout(function() {
-          splash.style.display = 'none';
-        }, 500); // 500ms para concluir o fade-out
-      }
-    }, 2000); // 2000ms = 2 segundos de exibição
-  })();
-</script>
-    
     <nav class="bg-blue-700 text-white shadow-md px-6 py-3 flex justify-between items-center border-b-4 border-red-600">
         <div class="flex items-center space-x-3">
             <img src="img/logo-bimbo.png" alt="Logo Bimbo" class="h-9 w-auto object-contain bg-white p-1 rounded">
@@ -139,13 +109,13 @@
                                 <label for="prod-lote-sup" class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Superior (Validade / Retirada)</label>
                                 <input type="text" id="prod-lote-sup" placeholder="Ex: VAL 15/07 RET 02" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
                                 <div id="prod-lote-sup-preview" class="text-xs font-mono tracking-wide mt-0.5 min-h-[14px]"></div>
-                                <div id="prod-lote-sup-debug" class="text-[10px] text-slate-400 font-mono mt-0.5 min-h-[12px] break-all"></div>
+                                <div id="prod-lote-sup-debug" class="hidden text-[10px] text-slate-400 font-mono mt-0.5 min-h-[12px] break-all"></div>
                             </div>
                             <div>
                                 <label for="prod-lote-inf" class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Inferior (Lote / Envio)</label>
                                 <input type="text" id="prod-lote-inf" placeholder="Ex: L234A ENV 22:30" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
                                 <div id="prod-lote-inf-preview" class="text-xs font-mono tracking-wide mt-0.5 min-h-[14px]"></div>
-                                <div id="prod-lote-inf-debug" class="text-[10px] text-slate-400 font-mono mt-0.5 min-h-[12px] break-all"></div>
+                                <div id="prod-lote-inf-debug" class="hidden text-[10px] text-slate-400 font-mono mt-0.5 min-h-[12px] break-all"></div>
                             </div>
                         </div>
                     </div>
@@ -369,6 +339,20 @@
         </div>
     </div>
 
+    <!-- MODAL DE PRÉ-VISUALIZAÇÃO DA ETIQUETA (renderizada pela Labelary) -->
+    <div id="modal-preview-etiqueta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-4 max-w-sm w-full">
+            <h3 class="font-bold text-slate-800 text-sm mb-2 text-center">Pré-visualização da Etiqueta</h3>
+            <div id="preview-etiqueta-status" class="text-xs text-slate-500 text-center py-6"></div>
+            <img id="preview-etiqueta-img" src="" alt="Pré-visualização da etiqueta" class="hidden w-full border border-slate-200 rounded-lg mb-3">
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <button onclick="prosseguirImpressaoDoPreview('zebra')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-2 rounded-lg">🖨️ Imprimir na Zebra</button>
+                <button onclick="prosseguirImpressaoDoPreview('normal')" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold py-2 px-2 rounded-lg">🖨️ Impressão Normal</button>
+            </div>
+            <button onclick="fecharPreviewEtiqueta()" class="w-full mt-2 text-slate-500 hover:text-slate-700 text-xs font-semibold py-1">Cancelar</button>
+        </div>
+    </div>
+
     <!-- MODAL INTEGRADO DE CÂMERA -->
     <div id="modal-camera" class="fixed inset-0 bg-slate-950 flex flex-col items-center justify-between p-4 hidden z-50 animate-fade-in">
         <div class="w-full flex justify-between items-center max-w-md border-b border-slate-800 pb-3">
@@ -380,6 +364,7 @@
             <video id="video-stream" autoplay playsinline muted class="w-full h-full object-cover"></video>
             <!-- Overlay visual para auxiliar no enquadramento do Lote -->
             <div id="camera-overlay-lote" class="absolute inset-0 pointer-events-none hidden">
+                <div id="camera-overlay-lote-quadro"></div>
                 <span class="uppercase tracking-wider">Alinhe o lote aqui</span>
             </div>
         </div>
