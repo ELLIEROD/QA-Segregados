@@ -9,6 +9,9 @@
     <!-- Firebase App e Database (Versão compatível com o seu projeto) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Config centralizada: a mesma fonte que o dashboard.js usa, para nunca
+         ficar dessincronizada de uma cópia solta em outro arquivo -->
+    <script src="js/config.js"></script>
 
 <link rel="stylesheet" href="mobile.css">
 
@@ -21,7 +24,10 @@
         
         <!-- Cabeçalho de Status -->
         <div id="topo-status" class="bg-slate-600 text-white text-center py-4 px-6 transition-colors duration-300">
-            <span class="text-xs uppercase tracking-widest font-semibold block opacity-75">Status do Lote</span>
+            <span class="text-xs uppercase tracking-widest font-semibold flex items-center justify-center gap-1.5 opacity-90">
+                <span class="w-1.5 h-1.5 rounded-full bg-white/90 animate-pulse"></span>
+                Status do Lote &middot; Atualizado em tempo real
+            </span>
             <h1 id="texto-status" class="text-2xl font-black mt-0.5">CARREGANDO...</h1>
         </div>
 
@@ -34,7 +40,7 @@
         <!-- Informações Técnicas -->
         <div class="p-6 space-y-4">
             <div>
-                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Produto</label>
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">📦 Produto</label>
                 <div id="info-produto" class="text-lg font-bold text-slate-800">---</div>
             </div>
 
@@ -61,20 +67,26 @@
             </div>
 
             <div class="border-t border-slate-100 pt-3">
-                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Motivo do Bloqueio</label>
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">⚠️ Motivo do Bloqueio</label>
                 <div id="info-motivo" class="text-sm font-medium text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-100 mt-1">---</div>
+            </div>
+
+            <!-- Observação registrada no momento da segregação (item.observacao) -->
+            <div id="bloco-observacao" class="hidden">
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">💬 Observação</label>
+                <div id="info-observacao" class="text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">---</div>
             </div>
 
             <!-- Pareceres e Observações Dinâmicas -->
             <div id="bloco-historico-acoes" class="space-y-2 border-t border-slate-100 pt-3 hidden">
-                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Histórico de Pareceres</label>
+                <label class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">🚦 Histórico de Pareceres</label>
                 <div id="parecer-supervisor" class="hidden text-xs text-amber-800 bg-amber-50 p-2 rounded border border-amber-200"></div>
                 <div id="parecer-qualidade" class="hidden text-xs text-green-800 bg-green-50 p-2 rounded border border-green-200"></div>
             </div>
             
             <div class="text-[10px] text-slate-400 text-center border-t border-slate-100 pt-4">
-                Registrado por: <span id="info-responsavel" class="font-medium text-slate-600">---</span><br>
-                Identificador Único: <span id="info-id" class="font-mono">---</span>
+                👤 Registrado por: <span id="info-responsavel" class="font-medium text-slate-600">---</span><br>
+                🔑 Identificador Único: <span id="info-id" class="font-mono">---</span>
             </div>
         </div>
     </div>
