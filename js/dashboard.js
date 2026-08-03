@@ -168,27 +168,14 @@ window.calcularQuantidadeTotal = function() {
 }
 
 window.toggleLote = function(checkbox) {
-    const sup = document.getElementById('prod-lote-sup');
     const inf = document.getElementById('prod-lote-inf');
-    const supPreview = document.getElementById('prod-lote-sup-preview');
-    const infPreview = document.getElementById('prod-lote-inf-preview');
     if (checkbox.checked) {
-        sup.value = "SEM LOTE";
-        inf.value = "APARAS / REFUGO";
-        sup.disabled = true;
+        inf.value = "SEM LOTE";
         inf.disabled = true;
     } else {
-        sup.value = "";
         inf.value = "";
-        sup.disabled = false;
         inf.disabled = false;
     }
-    if (supPreview) supPreview.innerHTML = "";
-    if (infPreview) infPreview.innerHTML = "";
-    const supDebug = document.getElementById('prod-lote-sup-debug');
-    const infDebug = document.getElementById('prod-lote-inf-debug');
-    if (supDebug) supDebug.textContent = "";
-    if (infDebug) infDebug.textContent = "";
 }
 
 // ==========================================
@@ -444,6 +431,16 @@ function reconhecerViaOcrSpace(dataUrlJpeg) {
     });
 }
 
+// ==========================================
+// SCANNER DE LOTE (OCR) - DESATIVADO
+// ==========================================
+// A partir de [ajuste conforme a data], o scanner de lote foi removido da
+// interface (botão "Escanear Lote" e campo "Linha Superior" não existem mais
+// no HTML) porque a leitura automática não estava confiável o suficiente.
+// O código abaixo ficou aqui só como referência/backup, mas não é mais
+// chamado por nada na tela - o cadastro de lote agora é 100% manual, com um
+// único campo de texto (prod-lote-inf). Pode ser removido com segurança, ou
+// reaproveitado no futuro se quiser tentar o OCR de novo.
 /**
  * Processamento OCR Direto e Preciso com Limpeza de Cache e Fallback Seguro
  */
@@ -810,16 +807,9 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
     const produto = document.getElementById('prod-nome').value;
     
     // PASSO 2: Ajuste da regra para quando for "Sem Lote"
-    const loteSuperior = document.getElementById('prod-lote-sup').value.trim().toUpperCase();
-    const loteInferior = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
+    const lote = document.getElementById('prod-lote-inf').value.trim().toUpperCase();
     
-    let loteConsolidado = "";
-    // Se o lote superior ou inferior estiver marcado/escrito como sem lote, salva apenas "Sem Lote"
-    if (loteSuperior === "SEM LOTE" || loteInferior === "SEM LOTE" || (loteSuperior === "" && loteInferior === "")) {
-        loteConsolidado = "Sem Lote";
-    } else {
-        loteConsolidado = loteSuperior + " | " + loteInferior;
-    }
+    let loteConsolidado = (lote === "" || lote === "SEM LOTE") ? "Sem Lote" : lote;
 
     const dollys = document.getElementById('prod-dollys').value;
     const cestos = document.getElementById('prod-cestos').value;
@@ -877,7 +867,6 @@ document.getElementById('form-segregacao').addEventListener('submit', function(e
         const previewDinamico = document.getElementById('preview-seguranca-dinamico');
         if (previewDinamico) previewDinamico.remove();
 
-        document.getElementById('prod-lote-sup').disabled = false;
         document.getElementById('prod-lote-inf').disabled = false;
         document.getElementById('prod-preview-container').classList.add('hidden');
         document.getElementById('prod-qtd-total-display').innerText = "0 produtos";
