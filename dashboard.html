@@ -91,32 +91,9 @@
                                 <input type="checkbox" id="sem-lote" class="mr-1" onchange="toggleLote(this)"> Sem Lote
                             </label>
                         </div>
-                        
-                        <div class="flex items-center gap-2">
-                            <!-- INPUT DE FALLBACK CORRIGIDO PARA DESKTOP -->
-                            <input type="file" id="prod-lote-file" class="hidden" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ processarOcrLote(e.target.result); }; reader.readAsDataURL(file); }">
-                            
-                            <!-- BOTAO ATUALIZADO COM A FUNÇÃO INTELIGENTE -->
-                            <button type="button" onclick="gerenciarCapturaMídia('lote', 'prod-lote-file')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition">
-                                📸 <span>Escanear Lote (Câmera / Arquivo)</span>
-                            </button>
-                        </div>
 
-                        <canvas id="ocr-canvas" class="hidden"></canvas>
-
-                        <div class="space-y-2 pt-1 border-t border-slate-200/60">
-                            <div>
-                                <label for="prod-lote-sup" class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Superior (Validade / Retirada)</label>
-                                <input type="text" id="prod-lote-sup" placeholder="Ex: VAL 15/07 RET 02" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
-                                <div id="prod-lote-sup-preview" class="text-xs font-mono tracking-wide mt-0.5 min-h-[14px]"></div>
-                                <div id="prod-lote-sup-debug" class="hidden text-[10px] text-slate-400 font-mono mt-0.5 min-h-[12px] break-all"></div>
-                            </div>
-                            <div>
-                                <label for="prod-lote-inf" class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Linha Inferior (Lote / Envio)</label>
-                                <input type="text" id="prod-lote-inf" placeholder="Ex: L234A ENV 22:30" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
-                                <div id="prod-lote-inf-preview" class="text-xs font-mono tracking-wide mt-0.5 min-h-[14px]"></div>
-                                <div id="prod-lote-inf-debug" class="hidden text-[10px] text-slate-400 font-mono mt-0.5 min-h-[12px] break-all"></div>
-                            </div>
+                        <div>
+                            <input type="text" id="prod-lote-inf" placeholder="Ex: LSP2119204004 DE2607" class="w-full px-3 py-2 border rounded-lg text-sm uppercase tracking-wide outline-none focus:ring-1 focus:ring-blue-600 font-mono">
                         </div>
                     </div>
 
