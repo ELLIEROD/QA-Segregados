@@ -1,51 +1,50 @@
 // ==========================================
-// CONFIGURAÇÃO DO FIREBASE (Substitua pelos seus dados oficiais)
+// CONFIGURAÇÃO DO FIREBASE
 // ==========================================
-const firebaseConfig = {
-  apiKey: "AIzaSyAj14HRYh9L-mHOJ5Wg8vpin2SX6VALORI",
-  authDomain: "controle-qualidade-qa.firebaseapp.com",
-  databaseURL: "https://controle-qualidade-qa-default-rtdb.firebaseio.com",
-  projectId: "controle-qualidade-qa",
-  storageBucket: "controle-qualidade-qa.firebasestorage.app",
-  messagingSenderId: "551389829977",
-  appId: "1:551389829977:web:f70b65a720c25b0b204a48",
-  measurementId: "G-JY6847X8DL"
-};
-
-// Inicializa o Firebase apenas se não tiver sido inicializado ainda
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const db = firebase.database();
-
-// ==========================================
-// CAPTURA DE PARÂMETROS DA URL E BUSCA REALTIME
-// ==========================================
-document.addEventListener("DOMContentLoaded", () => {
-    // Pega o id enviado na URL (ex: ?id=171020304050)
-    const params = new URLSearchParams(window.location.search);
-    const idItem = params.get("id");
-
-    if (!idItem) {
-        exibirMensagemErro("Parâmetro ID inválido ou ausente na leitura do QR Code.");
-        return;
+// A config vem centralizada de js/config.js (carregado antes deste arquivo
+// no rastreabilidade.html) - a mesma fonte que o dashboard.js usa. Antes essa
+// config ficava duplicada aqui dentro, com uma chave com cara de placeholder
+// nunca trocada pela real - se as duas cópias saíssem de sincronia, essa
+// página parava de funcionar sem nenhum aviso claro do motivo.
+if (typeof firebaseConfig === 'undefined') {
+    document.addEventListener("DOMContentLoaded", () => {
+        exibirMensagemErro("Configuração do Firebase não encontrada (js/config.js não carregou). Verifique se o arquivo js/config.js existe e está acessível.");
+    });
+} else {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
     }
+    const db = firebase.database();
 
-    // Busca os dados do item diretamente no Firebase
-    db.ref('segregados/' + idItem).on('value', (snapshot) => {
-        const item = snapshot.val();
-        
-        if (!item) {
-            exibirMensagemErro("Lote ou registro de retenção não foi localizado na base de dados da nuvem.");
+    // ==========================================
+    // CAPTURA DE PARÂMETROS DA URL E BUSCA REALTIME
+    // ==========================================
+    document.addEventListener("DOMContentLoaded", () => {
+        // Pega o id enviado na URL (ex: ?id=171020304050)
+        const params = new URLSearchParams(window.location.search);
+        const idItem = params.get("id");
+
+        if (!idItem) {
+            exibirMensagemErro("Parâmetro ID inválido ou ausente na leitura do QR Code.");
             return;
         }
 
-        renderizarDadosProduto(item);
-    }, (error) => {
-        console.error("Erro na leitura do Firebase:", error);
-        exibirMensagemErro("Erro técnico de conexão ao tentar buscar dados.");
+        // Busca os dados do item diretamente no Firebase
+        db.ref('segregados/' + idItem).on('value', (snapshot) => {
+            const item = snapshot.val();
+
+            if (!item) {
+                exibirMensagemErro("Lote ou registro de retenção não foi localizado na base de dados da nuvem.");
+                return;
+            }
+
+            renderizarDadosProduto(item);
+        }, (error) => {
+            console.error("Erro na leitura do Firebase:", error);
+            exibirMensagemErro("Erro técnico de conexão ao tentar buscar dados. Verifique sua conexão com a internet.");
+        });
     });
-});
+}
 
 // ==========================================
 // RENDERIZAÇÃO INTERFACES DINÂMICAS
@@ -60,6 +59,15 @@ function renderizarDadosProduto(item) {
     document.getElementById('info-motivo').innerText = item.motivo || '---';
     document.getElementById('info-responsavel').innerText = item.responsavel || '---';
     document.getElementById('info-id').innerText = `#RL-${item.id}`;
+
+    // Observação registrada no momento da segregação (só aparece se existir)
+    const blocoObservacao = document.getElementById('bloco-observacao');
+    if (item.observacao) {
+        document.getElementById('info-observacao').innerText = item.observacao;
+        blocoObservacao.classList.remove('hidden');
+    } else {
+        blocoObservacao.classList.add('hidden');
+    }
 
     // Gerenciamento e customização do Topo de Status
     const topoStatus = document.getElementById('topo-status');

@@ -34,21 +34,33 @@ if (usuarioLogado.nivel === "Qualidade") {
 // Banco de Dados de Produtos organizados por Linha e Regras de Embalagem
 const BANCO_PRODUTOS = {
     "Bolleria": [
-        { codigo: "502642", nome: "Grand Burguer Gergelim 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "500226", nome: "Grand Burguer Gergelim 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "502644", nome: "Pão Brioche 520g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }, 
-        { codigo: "502874", nome: "Pão Brioche 520g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },   
-        
+        { codigo: "502642", nome: "Gran Gurguer Gergelim 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "500226", nome: "Gran Burguer Gergelim 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "502644", nome: "Pão Brioche 520g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }, // <-- Faltava essa vírgula
+        { codigo: "502874", nome: "Pão Brioche 520g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },   // <-- Faltava essa vírgula
+        { codigo: "505878", nome: "Pão Hamburguer Artesano 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }, // <-- Faltava essa vírgula
+        { codigo: "505879", nome: "Pão Hamburguer Artesano 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },   // <-- Faltava essa vírgula
+        { codigo: "505880", nome: "Pão Hamb. Artesano Australiano 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }, // <-- Faltava essa vírgula
+        { codigo: "505881", nome: "Pão Hamb. Artesano Australiano 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 }
     ],
     "Linha 3": [
-        { codigo: "973515", nome: "100% NATURAL GIRASSOL E CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "973516", nome: "100% NATURAL TRITICALE CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "973517", nome: "100% NATURAL TRADICIONAL 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "23005", nome: "PÃO 12 GRÃOS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "28541", nome: "PÃO FRUTAS GRÃOS E CASTANHAS 500G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "500199", nome: "PÃO GRÃOS E CASTANHAS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "965403", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "965402", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PVT", cestosPorDolly: 32, produtosPorCesto: 13 }
+        { codigo: "973515", nome: "PÃO FORMA 100% NATURAL TRIT. GIRASSOL E CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "973516", nome: "PÃO FORMA 100% NATURAL TRIT. CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "973517", nome: "PÃO DE FORMA 100% NATURAL TRADICIONAL 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "182", nome: "PÃO SUPREME CASTANHA DO PARÁ E QUINOA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "20109", nome: "PÃO GRÃOS E CASTANHA VITTA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "23004", nome: "PÃO ZERO 12 GRÃOS 350G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "23005", nome: "PÃO 12 GRÃOS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "28540", nome: "PÃO 100% NATURAL 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "28541", nome: "PÃO FRUTAS GRÃOS E CASTANHAS 500G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "500199", nome: "PÃO GRÃOS E CASTANHAS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "20108", nome: "PÃO 14 GRÃOS VITTA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503128", nome: "PÃO ABÓBORA E LINHAÇA 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503129", nome: "PÃO CRANBERRY E QUINOA 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503130", nome: "PÃO CASTANHA DO PARÁ E QUINOA 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "503655", nome: "PÃO AVEIA SEMENTES E GRÃOS 350G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "965403", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 12 },
+        { codigo: "965402", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PVT", cestosPorDolly: 32, produtosPorCesto: 12 }
     ],
     "Linha 20K": [
         { codigo: "27636", nome: "Pão Integral 480g Pullman", cestosPorDolly: 32, produtosPorCesto: 12 },
@@ -1256,6 +1268,17 @@ window.gerenciarImpressorasZebra = function(id, quantidade = 1) {
         });
 };
 
+// Monta a URL de consulta (rastreabilidade.html) a partir da localização REAL
+// da página atual, não do domínio "puro" - isso é essencial em hospedagens
+// como GitHub Pages (project sites), onde o site fica em
+// "usuario.github.io/nome-do-repositorio/..." e não em "usuario.github.io/"
+// direto. Usar apenas window.location.origin perdia a pasta do repositório,
+// gerando um link quebrado (404) no QR Code.
+function montarUrlRastreabilidade(id) {
+    const urlLimpa = window.location.href.split('?')[0].replace('dashboard.html', '').replace('index.html', '');
+    return `${urlLimpa}rastreabilidade.html?id=${id}`;
+}
+
 // OPÇÃO 1: IMPRESSÃO COMUM (Layout Lado a Lado Otimizado para 10x7.5 cm)
 window.gerarEtiquetaProduto = function(id, quantidade = 1) {
     db.ref('segregados/' + id).once('value').then((snapshot) => {
@@ -1265,8 +1288,7 @@ window.gerarEtiquetaProduto = function(id, quantidade = 1) {
             return;
         }
 
-        const urlLimpa = window.location.href.split('?')[0].replace('dashboard.html', '').replace('index.html', '');
-        const urlConsulta = `${urlLimpa}rastreabilidade.html?id=${item.id}`;
+        const urlConsulta = montarUrlRastreabilidade(item.id);
         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(urlConsulta)}`;
         
         const janelaImpressao = window.open('', '_blank', 'width=500,height=400');
@@ -1385,7 +1407,7 @@ window.gerarEtiquetaProduto = function(id, quantidade = 1) {
 // linhas automaticamente, o texto nunca mais invade a coluna do QR,
 // independente de quão longo o produto ou o lote sejam.
 function construirZPLEtiqueta(item, quantidade) {
-    const urlConsulta = `${window.location.origin}/rastreabilidade.html?id=${item.id}`;
+    const urlConsulta = montarUrlRastreabilidade(item.id);
 
     return `
 ^XA
