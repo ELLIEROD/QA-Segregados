@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v11'; // Versão incrementada para forçar o descarte
+const CACHE_NAME = 'qa-v12';
 
 const ASSETS = [
   './',
