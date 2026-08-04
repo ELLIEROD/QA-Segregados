@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qa-v12';
+const CACHE_NAME = 'qa-v12.2';
 
 const ASSETS = [
   './',
