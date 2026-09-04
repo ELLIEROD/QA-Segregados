@@ -33,31 +33,24 @@ if (usuarioLogado.nivel === "Qualidade") {
 
 // Banco de Dados de Produtos organizados por Linha e Regras de Embalagem
 const BANCO_PRODUTOS = {
-    "Bolleria": [
-        { codigo: "502642", nome: "Grand Burguer Gergelim 420g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "500226", nome: "Grand Burguer Gergelim 420g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "502644", nome: "Pão Brioche 520g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }, 
-        { codigo: "502874", nome: "Pão Brioche 520g PVT", cestosPorDolly: 38, produtosPorCesto: 10 },   
+    "Linha 1": [
+        { codigo: "001", nome: "Pão de Hambúrguer", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "002", nome: "Pão de Hot Dog", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "003", nome: "Pão de Hamburguer Integral", cestosPorDolly: 38, produtosPorCesto: 10 }, 
+        { codigo: "004", nome: "Pão Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
         
     ],
-    "Linha 3": [
-        { codigo: "973515", nome: "100% NATURAL GIRASSOL E CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "973516", nome: "100% NATURAL TRITICALE CASTANHAS 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 13},
-        { codigo: "973517", nome: "100% NATURAL TRADICIONAL 350G BIMBO WICKBOLD", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "182", nome: "PÃO SUPREME CASTANHA DO PARÁ E QUINOA 450G BIMBO NUTRELLA", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "23005", nome: "PÃO 12 GRÃOS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "500199", nome: "PÃO GRÃOS E CASTANHAS 450G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "965403", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PULLMAN", cestosPorDolly: 32, produtosPorCesto: 13 },
-        { codigo: "965402", nome: "PÃO FIBRA MAIS PROTEÍNA 370G PVT", cestosPorDolly: 32, produtosPorCesto: 13 }
+    "Linha 2":  codigo: "005", nome: "Pão de Frutas", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "006", nome: "Pão de Gergerlim", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "007", nome: "Pão de Frutas Integral", cestosPorDolly: 38, produtosPorCesto: 10 }, 
+        { codigo: "008", nome: "Pão de Frutas Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
+        
     ],
-    "Linha 20K": [
-        { codigo: "27636", nome: "Pão Integral 480g Pullman", cestosPorDolly: 32, produtosPorCesto: 12 },
-        { codigo: "9101", nome: "Pão Pullman Tradicional 480g", cestosPorDolly: 32, produtosPorCesto: 12 },
-        { codigo: "7515", nome: "Pão Artesano Tradicional 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "500290", nome: "Pão Artesano Intergral 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "503140", nome: "Pão Artesano Na Chapa 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 },
-        { codigo: "965253", nome: "Pão Artesano Brioche 500g Pullman", cestosPorDolly: 38, produtosPorCesto: 10 }
-    ]
+    "Linha 3":  codigo: "009", nome: "Pão de Forma", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "010", nome: "Pão de Forma Integral", cestosPorDolly: 38, produtosPorCesto: 10 },
+        { codigo: "011", nome: "Pão de Forma Especial", cestosPorDolly: 38, produtosPorCesto: 10 }, 
+        { codigo: "012", nome: "Pão de Forma Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
+        
 };
 
 // Controla a alternância de abas principais do painel
