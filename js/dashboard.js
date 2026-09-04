@@ -40,17 +40,17 @@ const BANCO_PRODUTOS = {
         { codigo: "004", nome: "Pão Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
         
     ],
-    "Linha 2":  codigo: "005", nome: "Pão de Frutas", cestosPorDolly: 38, produtosPorCesto: 10 },
+    "Linha 2":  [codigo: "005", nome: "Pão de Frutas", cestosPorDolly: 38, produtosPorCesto: 10 },
         { codigo: "006", nome: "Pão de Gergerlim", cestosPorDolly: 38, produtosPorCesto: 10 },
         { codigo: "007", nome: "Pão de Frutas Integral", cestosPorDolly: 38, produtosPorCesto: 10 }, 
         { codigo: "008", nome: "Pão de Frutas Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
         
     ],
-    "Linha 3":  codigo: "009", nome: "Pão de Forma", cestosPorDolly: 38, produtosPorCesto: 10 },
+    "Linha 3":  [codigo: "009", nome: "Pão de Forma", cestosPorDolly: 38, produtosPorCesto: 10 },
         { codigo: "010", nome: "Pão de Forma Integral", cestosPorDolly: 38, produtosPorCesto: 10 },
         { codigo: "011", nome: "Pão de Forma Especial", cestosPorDolly: 38, produtosPorCesto: 10 }, 
         { codigo: "012", nome: "Pão de Forma Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
-        ]
+        ],
 };
 
 // Controla a alternância de abas principais do painel
