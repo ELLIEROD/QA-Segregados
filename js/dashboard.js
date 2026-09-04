@@ -50,7 +50,7 @@ const BANCO_PRODUTOS = {
         { codigo: "010", nome: "Pão de Forma Integral", cestosPorDolly: 38, produtosPorCesto: 10 },
         { codigo: "011", nome: "Pão de Forma Especial", cestosPorDolly: 38, produtosPorCesto: 10 }, 
         { codigo: "012", nome: "Pão de Forma Brioche", cestosPorDolly: 38, produtosPorCesto: 10 },   
-        
+        ]
 };
 
 // Controla a alternância de abas principais do painel
